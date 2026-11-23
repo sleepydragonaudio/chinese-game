@@ -1,0 +1,2492 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Тренажёр китайского — Telegram Mini App</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <style>
+    :root {
+      --bg: #f3f5f9;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --accent: #e11d48;
+      --accent-soft: #fff1f2;
+      --accent-hover: #be123c;
+      --blue: #2563eb;
+      --blue-soft: #eff6ff;
+      --green: #16a34a;
+      --green-soft: #f0fdf4;
+      --green-border: #86efac;
+      --red: #dc2626;
+      --red-soft: #fef2f2;
+      --amber: #d97706;
+      --amber-soft: #fffbeb;
+      --shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+      --radius: 16px;
+    }
+    body.dark {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-2: #273449;
+      --border: #334155;
+      --border-strong: #475569;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #fb7185;
+      --accent-soft: rgba(251, 113, 133, 0.14);
+      --accent-hover: #f43f5e;
+      --blue: #60a5fa;
+      --blue-soft: rgba(96, 165, 250, 0.14);
+      --green: #4ade80;
+      --green-soft: rgba(74, 222, 128, 0.14);
+      --green-border: #22c55e;
+      --red: #f87171;
+      --red-soft: rgba(248, 113, 113, 0.14);
+      --amber: #fbbf24;
+      --amber-soft: rgba(251, 191, 36, 0.14);
+      --shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 12px 12px 32px;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: background 0.2s, color 0.2s;
+    }
+    .hz {
+      font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+    }
+    .app {
+      width: 100%;
+      max-width: 540px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      border: 1px solid var(--border);
+    }
+
+    /* ---------- Top Bar ---------- */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: -0.01em;
+    }
+    .brand-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #e11d48, #f97316);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 15px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.1s, border-color 0.15s;
+    }
+    .icon-btn:active { transform: scale(0.94); }
+    .back-btn {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px 11px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .back-btn:active { transform: scale(0.96); }
+
+    /* ---------- Scope Toggle & Progress ---------- */
+    .scope-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+    .scope-pills {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .scope-pill {
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      border-radius: 10px;
+      padding: 9px 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .scope-pill.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .mastery-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #e11d48, #f97316);
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    /* ---------- Menu ---------- */
+    .menu-group {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin: 16px 2px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .menu-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .menu-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s, transform 0.1s, background 0.15s;
+      color: var(--text);
+    }
+    .menu-btn:hover { border-color: var(--blue); }
+    .menu-btn:active { transform: scale(0.985); }
+    .menu-btn.featured {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .menu-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .menu-info { flex: 1; min-width: 0; }
+    .menu-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+    .menu-info strong { font-size: 14.5px; color: var(--text); }
+    .menu-info .tag-new {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      display: inline-block;
+      line-height: 1.2;
+    }
+    .menu-info span {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.3;
+      display: block;
+    }
+
+    /* ---------- Shared Game UI ---------- */
+    .game-header {
+      text-align: center;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .game-sub {
+      text-align: center;
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      line-height: 1.35;
+    }
+    .btn-primary {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      padding: 13px 16px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      width: 100%;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.15s;
+    }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-accent {
+      background: linear-gradient(135deg, #e11d48, #f97316);
+      color: #fff;
+      border: none;
+      padding: 13px 16px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      width: 100%;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .btn-accent:active { transform: scale(0.98); }
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .tool-btn {
+      flex: 1;
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .tool-btn:active { transform: scale(0.97); }
+    .tool-btn.on {
+      background: var(--amber-soft);
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+    .tool-btn.good {
+      background: var(--green-soft);
+      border-color: var(--green);
+      color: var(--green);
+    }
+    .tool-btn.bad {
+      background: var(--red-soft);
+      border-color: var(--red);
+      color: var(--red);
+    }
+    .feedback {
+      min-height: 22px;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+      margin: 10px 0 12px;
+      line-height: 1.4;
+    }
+    .feedback.good { color: var(--green); }
+    .feedback.bad { color: var(--red); }
+    .reveal {
+      margin-top: 8px;
+      padding: 10px;
+      border-radius: 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .reveal .r-hz { font-size: 22px; font-weight: 600; }
+    .reveal .r-py { font-size: 16px; color: var(--blue); margin-top: 2px; font-weight: 600; }
+    .reveal .r-ru { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+    .score-line {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 10px;
+      font-weight: 600;
+    }
+
+    /* ---------- Audio Bar ---------- */
+    .audio-bar {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .audio-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 14px;
+      border-radius: 999px;
+      border: 1.5px solid var(--blue);
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-size: 13.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .audio-btn.secondary {
+      border-color: var(--border);
+      background: var(--surface-2);
+      color: var(--text-muted);
+    }
+    .audio-btn:active { transform: scale(0.96); }
+
+    /* ---------- Phonetics (Modes 9-11) ---------- */
+    .mode-switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .cards.wide-cards { grid-template-columns: 1fr; }
+    .card {
+      background: var(--surface-2);
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 10px;
+      font-size: 22px;
+      font-weight: 800;
+      cursor: pointer;
+      color: var(--text);
+      text-align: center;
+      transition: 0.12s;
+    }
+    .wide-cards .card { padding: 14px 12px; font-size: 19px; }
+    .card:active { transform: scale(0.97); }
+    .card.selected { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); }
+    .card.ok { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+    .card.bad { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+
+    /* ---------- Slots / Drag & Drop (Modes 4-7) ---------- */
+    .prompt { text-align: center; margin: 4px 0 14px; }
+    .prompt-big { font-size: 26px; font-weight: 800; color: var(--text); line-height: 1.25; }
+    .prompt-small { font-size: 13.5px; color: var(--text-muted); margin-top: 4px; line-height: 1.35; }
+    .sentence {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 10px 12px;
+      padding: 14px 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      margin-bottom: 12px;
+    }
+    .word { display: flex; gap: 4px; align-items: flex-end; }
+    .slot-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .slot-label { font-size: 14.5px; color: var(--text); font-weight: 700; min-height: 20px; white-space: nowrap; }
+    .slot-label.hz-label { font-size: 25px; font-weight: 500; min-height: 32px; }
+    .slot-label.hint-label { font-size: 12px; color: var(--text-muted); font-weight: 600; min-height: 16px; }
+    .slot {
+      min-width: 46px;
+      height: 52px;
+      border: 2px dashed var(--border-strong);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface);
+      transition: border-color 0.1s, background 0.1s;
+    }
+    .slot.wide { min-width: 68px; }
+    .slot.filled { border-style: solid; border-color: var(--border-strong); padding: 0 2px; }
+    .slot.over { border-color: var(--blue); background: var(--blue-soft); }
+    .slot.ok { border-color: var(--green); background: var(--green-soft); }
+    .slot.bad { border-color: var(--red); background: var(--red-soft); }
+    .slot .tile { border: none; background: transparent; box-shadow: none; margin: 0; padding: 4px 6px; }
+    .punct { font-size: 22px; color: var(--text-muted); padding-bottom: 12px; }
+    .pool {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      min-height: 60px;
+      padding: 12px 8px;
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      margin-bottom: 12px;
+      background: var(--surface);
+    }
+    .pool.over { border-color: var(--blue); background: var(--blue-soft); }
+    .pool-empty { color: var(--text-muted); font-size: 13px; align-self: center; }
+    .tile {
+      background: var(--surface-2);
+      border: 1.5px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 23px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: grab;
+      touch-action: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      line-height: 1.15;
+    }
+    .tile.py { font-size: 17px; font-family: inherit; font-weight: 700; }
+    .tile .tile-sub { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-top: 2px; font-family: inherit; }
+    .tile.dragging { opacity: 0.25; }
+    .ghost {
+      position: fixed;
+      z-index: 1000;
+      pointer-events: none;
+      transform: translate(-50%, -50%) scale(1.08);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+      border-color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    /* ---------- Pairs (Mode 8) ---------- */
+    .pairs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .pairs-col { display: flex; flex-direction: column; gap: 8px; }
+    .pair-item {
+      background: var(--surface-2);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 8px;
+      min-height: 54px;
+      cursor: pointer;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      transition: 0.12s;
+    }
+    .pair-item.L { font-size: 24px; font-weight: 600; }
+    .pair-item.R { font-size: 13.5px; font-weight: 600; line-height: 1.25; }
+    .pair-item.R.py { font-size: 17px; font-weight: 700; }
+    .pair-item .pi-sub { font-size: 11px; color: var(--green); margin-top: 2px; font-weight: 600; }
+    .pair-item.sel { background: var(--blue-soft); border-color: var(--blue); }
+    .pair-item.done { background: var(--green-soft); border-color: var(--green-border); color: var(--green); cursor: default; }
+    .pair-item.wrong { background: var(--red-soft); border-color: var(--red); }
+
+    /* ---------- Flashcards (Mode 1 - NEW) ---------- */
+    .flash-stage {
+      perspective: 1000px;
+      margin-bottom: 14px;
+    }
+    .flashcard {
+      width: 100%;
+      min-height: 250px;
+      border-radius: 18px;
+      border: 2px solid var(--border);
+      background: var(--surface-2);
+      padding: 24px 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s;
+      position: relative;
+    }
+    .flashcard:active { transform: scale(0.99); }
+    .flashcard.flipped {
+      border-color: var(--accent);
+      background: var(--surface);
+    }
+    .flash-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .flash-counter {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .flash-hz {
+      font-size: 62px;
+      font-weight: 600;
+      line-height: 1.15;
+      margin: 12px 0 8px;
+    }
+    .flash-tap-hint {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+    .flash-py {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .flash-ru {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .flash-example {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-top: 4px;
+    }
+    .flash-example .ex-hz { font-size: 18px; font-weight: 600; }
+    .flash-example .ex-py { font-size: 13px; color: var(--blue); margin-top: 2px; }
+    .flash-example .ex-ru { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ---------- Tone Shooter (Mode 2 - NEW) ---------- */
+    .tone-word-box {
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 18px 12px;
+      text-align: center;
+      margin-bottom: 14px;
+    }
+    .tone-hz { font-size: 46px; font-weight: 600; line-height: 1.2; }
+    .tone-ru { font-size: 14px; color: var(--text-muted); margin-top: 4px; font-weight: 600; }
+    .tone-syls {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .tone-syl {
+      padding: 8px 14px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      font-size: 20px;
+      font-weight: 800;
+      min-width: 64px;
+    }
+    .tone-syl.active {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+    .tone-syl.ok {
+      border-color: var(--green);
+      background: var(--green-soft);
+      color: var(--green);
+    }
+    .tone-syl.bad {
+      border-color: var(--red);
+      background: var(--red-soft);
+      color: var(--red);
+    }
+    .tone-pad {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .tone-key {
+      border: 1.5px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 12px 4px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      transition: transform 0.1s, border-color 0.12s;
+    }
+    .tone-key:active { transform: scale(0.94); }
+    .tone-key strong { font-size: 18px; }
+    .tone-key span { font-size: 11px; color: var(--text-muted); font-weight: 700; }
+
+    /* ---------- Blitz 60s (Mode 3 - NEW) ---------- */
+    .blitz-hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-weight: 800;
+      font-size: 14px;
+    }
+    .blitz-combo {
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--amber-soft);
+      color: var(--amber);
+      font-size: 12.5px;
+    }
+    .timer-track {
+      width: 100%;
+      height: 10px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .timer-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e, #eab308, #ef4444);
+      transition: width 0.2s linear;
+    }
+    .blitz-q {
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 12px;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .blitz-q-type {
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .blitz-q-main {
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .blitz-q-main.ru-q { font-size: 22px; }
+    .blitz-opts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .blitz-opt {
+      background: var(--surface-2);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 8px;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      cursor: pointer;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      transition: 0.1s;
+    }
+    .blitz-opt.hz-opt { font-size: 24px; }
+    .blitz-opt:active { transform: scale(0.97); }
+    .blitz-opt.ok { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+    .blitz-opt.bad { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+    .blitz-summary {
+      text-align: center;
+      padding: 18px 12px;
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      margin-bottom: 14px;
+    }
+    .blitz-big-score {
+      font-size: 46px;
+      font-weight: 900;
+      color: var(--accent);
+      line-height: 1.1;
+      margin: 6px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="back-btn" id="menu-back-btn" style="display:none;" onclick="goMenu()">← Меню</button>
+      <div class="brand" id="brand-logo">
+        <div class="brand-badge hz">汉</div>
+        <span>Китайский</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="stat-pill" id="streak-pill" title="Текущая серия правильных ответов">🔥 0</div>
+      <div class="stat-pill" id="xp-pill" title="Опыт">⭐ 0</div>
+      <button class="icon-btn" id="sound-btn" onclick="toggleSound()" title="Звуковые эффекты">🔊</button>
+      <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Светлая / тёмная тема">🌙</button>
+    </div>
+  </div>
+
+  <!-- ================= MENU ================= -->
+  <div id="screen-menu">
+    <div class="scope-card">
+      <div class="scope-pills">
+        <button class="scope-pill active" id="scope-new" onclick="setScope('new')">✨ Только новое</button>
+        <button class="scope-pill" id="scope-all" onclick="setScope('all')">📚 Весь материал</button>
+      </div>
+      <div class="mastery-row">
+        <span>Изучено новых слов с доски</span>
+        <span id="mastery-text">0 / 24</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="mastery-bar" style="width: 0%;"></div>
+      </div>
+    </div>
+
+    <div class="menu-group">Новые режимы</div>
+    <div class="menu-grid">
+      <button class="menu-btn featured" onclick="startGame('flashcards')">
+        <div class="menu-icon">🃏</div>
+        <div class="menu-info">
+          <div class="menu-title-row">
+            <strong>1. Карточки-изучалка</strong>
+            <span class="tag-new">NEW</span>
+          </div>
+          <span>Изучай новые иероглифы с доски с озвучкой, примерами и отметкой прогресса</span>
+        </div>
+      </button>
+      <button class="menu-btn" onclick="startGame('tones')">
+        <div class="menu-icon">🎵</div>
+        <div class="menu-info">
+          <div class="menu-title-row">
+            <strong>2. Тоновый тир</strong>
+            <span class="tag-new">NEW</span>
+          </div>
+          <span>Выбери правильный тон (1–4 или нейтральный) для каждого слога слова</span>
+        </div>
+      </button>
+      <button class="menu-btn" onclick="startGame('blitz')">
+        <div class="menu-icon">⚡</div>
+        <div class="menu-info">
+          <div class="menu-title-row">
+            <strong>3. Блиц 60 секунд</strong>
+            <span class="tag-new">NEW</span>
+          </div>
+          <span>Быстрая аркада на скорость и комбо — рекорд сохраняется</span>
+        </div>
+      </button>
+    </div>
+
+    <div class="menu-group">Иероглифы и фразы</div>
+    <div class="menu-grid">
+      <button class="menu-btn" onclick="startGame('py2hz')">
+        <div class="menu-icon">🧩</div>
+        <div class="menu-info">
+          <strong>4. Пиньинь → иероглифы</strong>
+          <span>Перетащи или нажми на иероглифы под нужные слоги (есть карточки-ловушки)</span>
+        </div>
+      </button>
+      <button class="menu-btn" onclick="startGame('hz2py')">
+        <div class="menu-icon">🔤</div>
+        <div class="menu-info">
+          <strong>5. Иероглифы → пиньинь</strong>
+          <span>Подбери слоги с правильными тонами под иероглифы</span>
+        </div>
+      </button>
+      <button class="menu-btn" onclick="startGame('order')">
+        <div class="menu-icon">🧱</div>
+        <div class="menu-info">
+          <strong>6. Собери фразу</strong>
+          <span>Дан перевод — расставь китайские слова в правильном порядке</span>
+        </div>
+      </button>
+      <button class="menu-btn" onclick="startGame('time')">
+        <div class="menu-icon">🕒</div>
+        <div class="menu-info">
+          <strong>7. Время и даты</strong>
+          <span>«15:45», «четверг, 8 октября», дата рождения + ловушка 二 / 两</span>
+        </div>
+      </button>
+      <button class="menu-btn" onclick="startGame('pairs')">
+        <div class="menu-icon">🔗</div>
+        <div class="menu-info">
+          <strong>8. Найди пару</strong>
+          <span>Соедини слово с переводом или с пиньинем</span>
+        </div>
+      </button>
+    </div>
+
+    <div class="menu-group">Фонетика (с озвучкой)</div>
+    <div class="menu-grid">
+      <button class="menu-btn" onclick="startGame('syllables')">
+        <div class="menu-icon">🗣️</div>
+        <div class="menu-info">
+          <strong>9. Сложные слоги</strong>
+          <span>4 тона одного слога (ü, zh/z, ang/an, uo/ou) — на слух или с учителем</span>
+        </div>
+      </button>
+      <button class="menu-btn" onclick="startGame('combos')">
+        <div class="menu-icon">🌊</div>
+        <div class="menu-info">
+          <strong>10. Коварные сочетания</strong>
+          <span>Слова и связки с перепадами тонов (добавлены слова с новой доски)</span>
+        </div>
+      </button>
+      <button class="menu-btn" onclick="startGame('twins')">
+        <div class="menu-icon">👯</div>
+        <div class="menu-info">
+          <strong>11. Фонетические близнецы</strong>
+          <span>Похожие по звучанию слоги и слова (xīn/xīng, zh/z, xuéxí/xiūxi)</span>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= MODE 1: FLASHCARDS ================= -->
+  <div id="screen-flashcards" style="display:none;">
+    <div class="game-header">1. Карточки-изучалка</div>
+    <div class="game-sub" id="flash-sub">Нажми на карточку, чтобы перевернуть</div>
+    <div class="audio-bar">
+      <button class="audio-btn" onclick="speakFlash(1.0)">🔊 Озвучить</button>
+      <button class="audio-btn secondary" onclick="speakFlash(0.68)">🐢 Медленно</button>
+    </div>
+    <div class="flash-stage">
+      <div class="flashcard" id="flash-card" onclick="flipFlash()">
+        <span class="flash-badge" id="flash-badge">Новое</span>
+        <span class="flash-counter" id="flash-counter">1 / 24</span>
+        <div id="flash-front">
+          <div class="flash-hz hz" id="flash-hz">想</div>
+          <div class="flash-tap-hint">Нажми, чтобы увидеть перевод и пиньинь</div>
+        </div>
+        <div id="flash-back" style="display:none; width:100%;">
+          <div class="flash-hz hz" id="flash-hz-back" style="font-size:44px; margin:4px 0;">想</div>
+          <div class="flash-py" id="flash-py">xiǎng</div>
+          <div class="flash-ru" id="flash-ru">хотеть, хотелось бы</div>
+          <div class="flash-example" id="flash-ex" style="display:none;">
+            <div class="ex-hz hz" id="flash-ex-hz"></div>
+            <div class="ex-py" id="flash-ex-py"></div>
+            <div class="ex-ru" id="flash-ex-ru"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="tool-btn bad" onclick="rateFlash(false)">🔄 Ещё учу</button>
+      <button class="tool-btn good" onclick="rateFlash(true)">✅ Знаю</button>
+    </div>
+    <div class="score-line" id="flash-score"></div>
+  </div>
+
+  <!-- ================= MODE 2: TONE SHOOTER ================= -->
+  <div id="screen-tones" style="display:none;">
+    <div class="game-header">2. Тоновый тир</div>
+    <div class="game-sub">Выбери тон для выделенного слога</div>
+    <div class="tone-word-box">
+      <div class="tone-hz hz" id="tone-hz"></div>
+      <div class="tone-ru" id="tone-ru"></div>
+      <div class="tone-syls" id="tone-syls"></div>
+    </div>
+    <div class="tone-pad" id="tone-pad">
+      <button class="tone-key" onclick="pickTone(1)"><strong>1 ˉ</strong><span>ровный</span></button>
+      <button class="tone-key" onclick="pickTone(2)"><strong>2 ˊ</strong><span>вверх</span></button>
+      <button class="tone-key" onclick="pickTone(3)"><strong>3 ˇ</strong><span>вниз-вверх</span></button>
+      <button class="tone-key" onclick="pickTone(4)"><strong>4 ˋ</strong><span>резко вниз</span></button>
+      <button class="tone-key" onclick="pickTone(0)"><strong>0 ·</strong><span>нейтр.</span></button>
+    </div>
+    <div class="audio-bar" id="tone-audio-row">
+      <button class="audio-btn secondary" onclick="speakToneWord()">🔊 Подсказка на слух</button>
+    </div>
+    <div class="feedback" id="tone-feedback"></div>
+    <button class="btn-primary" onclick="nextRound()">Следующее слово ➔</button>
+    <div class="score-line" id="tone-score"></div>
+  </div>
+
+  <!-- ================= MODE 3: BLITZ 60s ================= -->
+  <div id="screen-blitz" style="display:none;">
+    <div class="game-header">3. Блиц 60 секунд</div>
+    <div id="blitz-active">
+      <div class="blitz-hud">
+        <span id="blitz-timer">⏱ 60с</span>
+        <span class="blitz-combo" id="blitz-combo">Комбо ×1</span>
+        <span id="blitz-pts">Счёт: 0</span>
+      </div>
+      <div class="timer-track"><div class="timer-fill" id="blitz-bar" style="width:100%;"></div></div>
+      <div class="blitz-q">
+        <div class="blitz-q-type" id="blitz-q-type">Выбери перевод</div>
+        <div class="blitz-q-main hz" id="blitz-q-main">朋友</div>
+      </div>
+      <div class="blitz-opts" id="blitz-opts"></div>
+      <div class="feedback" id="blitz-feedback"></div>
+    </div>
+    <div id="blitz-end" style="display:none;">
+      <div class="blitz-summary">
+        <div style="font-size:14px; font-weight:700; color:var(--text-muted);">Время вышло!</div>
+        <div class="blitz-big-score" id="blitz-final-pts">0</div>
+        <div id="blitz-final-detail" style="font-size:13.5px; color:var(--text-muted);"></div>
+      </div>
+      <button class="btn-accent" onclick="startBlitz()">⚡ Сыграть ещё раз</button>
+    </div>
+  </div>
+
+  <!-- ================= MODES 4-7: SLOTS ================= -->
+  <div id="screen-slots" style="display:none;">
+    <div class="game-header" id="slots-title"></div>
+    <div class="game-sub" id="slots-sub"></div>
+    <div class="prompt" id="slots-prompt"></div>
+    <div class="sentence hz" id="slots-sentence"></div>
+    <div class="feedback" id="slots-feedback"></div>
+    <div class="pool hz" id="slots-pool"></div>
+    <div class="btn-row">
+      <button class="tool-btn" id="hint-btn" onclick="toggleHint()">💡 Подсказка</button>
+      <button class="tool-btn" id="slots-speak-btn" onclick="speakSlots()">🔊 Озвучить</button>
+      <button class="tool-btn" onclick="resetSlots()">↺ Сбросить</button>
+    </div>
+    <button class="btn-primary" onclick="nextRound()">Следующее задание ➔</button>
+    <div class="score-line" id="slots-score"></div>
+  </div>
+
+  <!-- ================= MODE 8: PAIRS ================= -->
+  <div id="screen-pairs" style="display:none;">
+    <div class="game-header">8. Найди пару</div>
+    <div class="game-sub" id="pairs-sub"></div>
+    <div class="pairs">
+      <div class="pairs-col hz" id="pairs-left"></div>
+      <div class="pairs-col" id="pairs-right"></div>
+    </div>
+    <div class="feedback" id="pairs-feedback"></div>
+    <button class="btn-primary" onclick="nextRound()">Следующее задание ➔</button>
+    <div class="score-line" id="pairs-score"></div>
+  </div>
+
+  <!-- ================= MODES 9-11: PHONETICS ================= -->
+  <div id="screen-phonetics" style="display:none;">
+    <div class="game-header" id="phon-title"></div>
+    <div class="mode-switch">
+      <button class="scope-pill active" id="phon-mode-quiz" onclick="setPhonMode('quiz')">🎧 На слух (соло)</button>
+      <button class="scope-pill" id="phon-mode-free" onclick="setPhonMode('free')">👨‍🏫 С учителем</button>
+    </div>
+    <div class="audio-bar" id="phon-audio-bar">
+      <button class="audio-btn" onclick="speakPhonTarget(0.95)">🔊 Прослушать</button>
+      <button class="audio-btn secondary" onclick="speakPhonTarget(0.65)">🐢 Медленно</button>
+    </div>
+    <div class="cards" id="cards-container"></div>
+    <div class="feedback" id="phon-feedback"></div>
+    <button class="btn-primary" onclick="nextRound()">Следующее задание ➔</button>
+    <div class="score-line" id="phon-score"></div>
+  </div>
+</div>
+
+<script>
+  /* =====================================================================
+     TELEGRAM MINI APP & STORAGE & AUDIO HELPERS
+     ===================================================================== */
+  const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+  if (tg) {
+    try {
+      tg.ready();
+      tg.expand();
+      if (tg.colorScheme === 'dark') document.body.classList.add('dark');
+    } catch (e) {}
+  }
+
+  function haptic(type) {
+    if (!tg || !tg.HapticFeedback) return;
+    try {
+      if (type === 'ok') tg.HapticFeedback.notificationOccurred('success');
+      else if (type === 'bad') tg.HapticFeedback.notificationOccurred('error');
+      else tg.HapticFeedback.impactOccurred('light');
+    } catch (e) {}
+  }
+
+  const STORAGE_KEY = 'zh_trainer_tg_v2';
+  let store = { xp: 0, streak: 0, bestBlitz: 0, mastered: [], sound: true, dark: false, scope: 'new', phonMode: 'quiz' };
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (saved && typeof saved === 'object') store = { ...store, ...saved };
+  } catch (e) {}
+  if (store.dark) document.body.classList.add('dark');
+
+  function saveStore() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch (e) {}
+    updateTopStats();
+  }
+
+  let audioCtx = null;
+  function playSfx(kind) {
+    if (!store.sound) return;
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      if (kind === 'ok') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.12);
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc.start(now); osc.stop(now + 0.23);
+      } else if (kind === 'bad') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.16);
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        osc.start(now); osc.stop(now + 0.21);
+      } else {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        osc.start(now); osc.stop(now + 0.07);
+      }
+    } catch (e) {}
+  }
+
+  function speakZh(text, rate = 0.92) {
+    if (!text || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'zh-CN';
+      u.rate = rate;
+      const voices = window.speechSynthesis.getVoices();
+      const zh = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('zh'));
+      if (zh) u.voice = zh;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
+  function awardXP(pts, correct) {
+    if (correct) {
+      store.xp += pts;
+      store.streak += 1;
+      playSfx('ok');
+      haptic('ok');
+    } else {
+      store.streak = 0;
+      playSfx('bad');
+      haptic('bad');
+    }
+    saveStore();
+  }
+
+  function toggleSound() {
+    store.sound = !store.sound;
+    saveStore();
+    playSfx('tap');
+  }
+  function toggleTheme() {
+    store.dark = !store.dark;
+    document.body.classList.toggle('dark', store.dark);
+    saveStore();
+  }
+
+  /* =====================================================================
+     ТОНОВЫЕ ПОМОЩНИКИ
+     ===================================================================== */
+  const TONE_MARKS = { a: 'āáǎà', e: 'ēéěè', i: 'īíǐì', o: 'ōóǒò', u: 'ūúǔù', 'ü': 'ǖǘǚǜ' };
+  const MARK_INFO = {};
+  for (const v in TONE_MARKS) [...TONE_MARKS[v]].forEach((m, i) => { MARK_INFO[m] = { v, t: i + 1 }; });
+
+  function splitTone(s) {
+    let tone = 0, base = '';
+    for (const ch of s) {
+      if (MARK_INFO[ch]) { tone = MARK_INFO[ch].t; base += MARK_INFO[ch].v; } else base += ch;
+    }
+    return { base, tone };
+  }
+  function applyTone(base, tone) {
+    base = base.replace(/v/g, 'ü');
+    if (!tone) return base;
+    let idx = -1;
+    if (base.includes('a')) idx = base.indexOf('a');
+    else if (base.includes('e')) idx = base.indexOf('e');
+    else if (base.includes('ou')) idx = base.indexOf('o');
+    else for (let i = base.length - 1; i >= 0; i--) if ('iouü'.includes(base[i])) { idx = i; break; }
+    if (idx < 0) return base;
+    return base.slice(0, idx) + TONE_MARKS[base[idx]][tone - 1] + base.slice(idx + 1);
+  }
+  const allTones = base => [1, 2, 3, 4].map(t => applyTone(base, t));
+  function toneVariants(word, n = 3) {
+    const syls = word.split(' ');
+    const marked = syls.map((s, i) => splitTone(s).tone ? i : -1).filter(i => i >= 0);
+    const out = new Set([word]);
+    let guard = 0;
+    while (out.size < n + 1 && guard++ < 300) {
+      const copy = [...syls];
+      const i = marked[Math.floor(Math.random() * marked.length)];
+      const { base, tone } = splitTone(copy[i]);
+      let t; do { t = 1 + Math.floor(Math.random() * 4); } while (t === tone);
+      copy[i] = applyTone(base, t);
+      out.add(copy.join(' '));
+    }
+    return [...out];
+  }
+  const rand = n => Math.floor(Math.random() * n);
+  const pick = arr => arr[rand(arr.length)];
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+
+  /* =====================================================================
+     ДАННЫЕ: СЛОВАРЬ (СТАРОЕ + НОВОЕ С КРАСНОЙ ДОСКИ)
+     Формат: [иероглифы, пиньинь, перевод, isNew]
+     СТРОГО только 183 старых + 23 новых иероглифа с доски!
+     ===================================================================== */
+  const NEW_VOCAB = [
+    ["想", "xiǎng", "хотеть, хотелось бы", true],
+    ["回", "huí", "возвращаться", true],
+    ["回来", "huí lái", "вернуться (прийти обратно)", true],
+    ["听", "tīng", "слушать", true],
+    ["学习", "xué xí", "учить, изучать", true],
+    ["休息", "xiū xi", "отдыхать", true],
+    ["一点点", "yī diǎn diǎn", "чуть-чуть", true],
+    ["会", "huì", "мочь, уметь", true],
+    ["见", "jiàn", "видеть, видеться", true],
+    ["观察", "guān chá", "наблюдать, обозревать", true],
+    ["写", "xiě", "писать", true],
+    ["打字", "dǎ zì", "печатать (набирать текст)", true],
+    ["坐", "zuò", "сидеть; ехать на транспорте", true],
+    ["开", "kāi", "водить машину; открывать", true],
+    ["行", "xíng", "идти; сходить с транспорта", true],
+    ["入口", "rù kǒu", "вход", true],
+    ["出口", "chū kǒu", "выход", true],
+    ["朋友", "péng you", "друг", true],
+    ["在一起", "zài yī qǐ", "вместе", true],
+    ["一起", "yī qǐ", "вместе (кратко)", true],
+    ["走路", "zǒu lù", "гулять, идти пешком", true],
+    ["路", "lù", "путь, дорога", true],
+    ["跳舞", "tiào wǔ", "танцевать", true],
+    ["兆", "zhào", "миллион (с доски)", true]
+  ];
+
+  const OLD_VOCAB = [
+    ["叫", "jiào", "звать(ся)"], ["什么", "shén me", "что? какой?"], ["名字", "míng zi", "имя"],
+    ["汉字", "hàn zì", "иероглиф"], ["多少", "duō shǎo", "сколько"], ["岁", "suì", "лет (о возрасте)"],
+    ["哪", "nǎ", "какой? который?"], ["国", "guó", "страна"], ["人", "rén", "человек"],
+    ["俄罗斯", "é luó sī", "Россия"], ["俄语", "é yǔ", "русский язык"], ["英语", "yīng yǔ", "английский язык"],
+    ["汉语", "hàn yǔ", "китайский язык"], ["老师", "lǎo shī", "учитель"], ["学生", "xué sheng", "ученик, студент"],
+    ["数学", "shù xué", "математика"], ["数学家", "shù xué jiā", "математик"], ["水", "shuǐ", "вода"],
+    ["大家", "dà jiā", "все"], ["家", "jiā", "дом, семья"], ["大", "dà", "большой"], ["小", "xiǎo", "маленький"],
+    ["年", "nián", "год"], ["月", "yuè", "месяц"], ["号", "hào", "число (в дате)"], ["生日", "shēng rì", "день рождения"],
+    ["几", "jǐ", "сколько? (до 10)"], ["今天", "jīn tiān", "сегодня"], ["昨天", "zuó tiān", "вчера"],
+    ["前天", "qián tiān", "позавчера"], ["明天", "míng tiān", "завтра"], ["后天", "hòu tiān", "послезавтра"],
+    ["早上", "zǎo shang", "утро"], ["上午", "shàng wǔ", "первая половина дня"], ["中午", "zhōng wǔ", "полдень"],
+    ["下午", "xià wǔ", "вторая половина дня"], ["傍晚", "bàng wǎn", "сумерки"], ["晚上", "wǎn shang", "вечер"],
+    ["深夜", "shēn yè", "глубокая ночь"], ["凌晨", "líng chén", "раннее утро, до рассвета"], ["午夜", "wǔ yè", "полночь"],
+    ["现在", "xiàn zài", "сейчас"], ["星期", "xīng qī", "неделя"], ["星期天", "xīng qī tiān", "воскресенье"],
+    ["点", "diǎn", "час (о времени)"], ["分", "fēn", "минута"], ["刻", "kè", "четверть часа"], ["半", "bàn", "половина"],
+    ["差", "chà", "без (о времени)"], ["两", "liǎng", "два (количество)"], ["第一", "dì yī", "первый"],
+    ["再见", "zài jiàn", "до свидания"], ["您好", "nín hǎo", "здравствуйте"], ["晚安", "wǎn ān", "спокойной ночи"],
+    ["好梦", "hǎo mèng", "сладких снов"], ["很", "hěn", "очень"], ["可以", "kě yǐ", "можно"], ["也", "yě", "тоже"],
+    ["请问", "qǐng wèn", "скажите, пожалуйста"], ["这", "zhè", "это, этот"], ["谁", "shéi", "кто"],
+    ["他们", "tā men", "они"], ["猫", "māo", "кошка"], ["狗", "gǒu", "собака"], ["父母", "fù mǔ", "родители"],
+    ["爸爸", "bà ba", "папа"], ["妈妈", "mā ma", "мама"], ["父亲", "fù qīn", "отец"], ["母亲", "mǔ qīn", "мать"],
+    ["哥哥", "gē ge", "старший брат"], ["弟弟", "dì di", "младший брат"], ["姐姐", "jiě jie", "старшая сестра"],
+    ["妹妹", "mèi mei", "младшая сестра"], ["丈夫", "zhàng fu", "муж"], ["妻子", "qī zi", "жена"],
+    ["孩子", "hái zi", "ребёнок"], ["儿子", "ér zi", "сын"], ["女儿", "nǚ ér", "дочь"],
+    ["爷爷", "yé ye", "дедушка (по папе)"], ["奶奶", "nǎi nai", "бабушка (по папе)"],
+    ["外公", "wài gōng", "дедушка (по маме)"], ["外婆", "wài pó", "бабушка (по маме)"],
+    ["有", "yǒu", "иметь, есть"], ["没有", "méi yǒu", "не иметь, нет"], ["和", "hé", "и"], ["住", "zhù", "жить"],
+    ["城市", "chéng shì", "город"], ["喜欢", "xǐ huan", "нравиться"], ["爱", "ài", "любить"], ["天气", "tiān qì", "погода"],
+    ["热", "rè", "жарко"], ["温暖", "wēn nuǎn", "тепло"], ["冷", "lěng", "холодно"], ["凉爽", "liáng shuǎng", "прохладно"],
+    ["多云", "duō yún", "облачно"], ["晴天", "qíng tiān", "ясный день"], ["阴天", "yīn tiān", "пасмурно"],
+    ["雪", "xuě", "снег"], ["雨", "yǔ", "дождь"], ["风", "fēng", "ветер"], ["雾", "wù", "туман"], ["茶", "chá", "чай"],
+    ["对", "duì", "верно"], ["高", "gāo", "высокий"], ["矮", "ǎi", "низкий"], ["坏", "huài", "плохой"],
+    ["帅", "shuài", "красивый (о мужчине)"], ["漂亮", "piào liang", "красивая"], ["年轻", "nián qīng", "молодой"],
+    ["老", "lǎo", "старый"], ["高兴", "gāo xìng", "радостный"], ["快乐", "kuài lè", "весёлый, счастливый"],
+    ["非常", "fēi cháng", "чрезвычайно"], ["可笑", "kě xiào", "смешной"], ["要", "yào", "хотеть, собираться"],
+    ["说", "shuō", "говорить"], ["来", "lái", "приходить"], ["去", "qù", "идти, ехать"], ["出去", "chū qù", "выходить"],
+    ["走", "zǒu", "идти пешком"], ["工作", "gōng zuò", "работа, работать"], ["每", "měi", "каждый"], ["次", "cì", "раз"],
+    ["或者", "huò zhě", "или"], ["活着", "huó zhe", "жить, быть живым"], ["美", "měi", "красивый"],
+    ["我们", "wǒ men", "мы"], ["你们", "nǐ men", "вы (много людей)"], ["中国", "zhōng guó", "Китай"],
+    ["英国", "yīng guó", "Англия"], ["喵喵叫", "miāo miāo jiào", "мяукать"], ["走走", "zǒu zou", "прогуляться"],
+    ["一个人", "yī ge rén", "один, в одиночку"], ["对不对", "duì bu duì", "правильно?"], ["谁的", "shéi de", "чей"]
+  ].map(v => [...v, false]);
+
+  const VOCAB = [...NEW_VOCAB, ...OLD_VOCAB];
+
+  /* =====================================================================
+     ПРЕДЛОЖЕНИЯ (НОВЫЕ С ДОСКИ + СТАРЫЕ)
+     Формат: [иероглифы с пробелами, пиньинь, перевод, флаг ('x' = не для order), isNew]
+     ===================================================================== */
+  const NEW_SENTENCES = [
+    ["我 回来 了。", "wǒ huí lái le", "Я вернулся.", "", true],
+    ["我 想 回 家。", "wǒ xiǎng huí jiā", "Я хочу вернуться домой.", "", true],
+    ["我 想 休息。", "wǒ xiǎng xiū xi", "Я хочу отдохнуть.", "", true],
+    ["我 想 学习 汉语。", "wǒ xiǎng xué xí hàn yǔ", "Я хочу учить китайский язык.", "", true],
+    ["我 会 说 一点点 汉语。", "wǒ huì shuō yī diǎn diǎn hàn yǔ", "Я умею чуть-чуть говорить по-китайски.", "", true],
+    ["你 会 写 汉字 吗？", "nǐ huì xiě hàn zì ma", "Ты умеешь писать иероглифы?", "", true],
+    ["我 会 写 一点点 汉字。", "wǒ huì xiě yī diǎn diǎn hàn zì", "Я умею немного писать иероглифы.", "", true],
+    ["我 每 天 学习 汉语。", "wǒ měi tiān xué xí hàn yǔ", "Я каждый день учу китайский.", "", true],
+    ["他 在 家 学习。", "tā zài jiā xué xí", "Он учится дома.", "", true],
+    ["我们 在 一起 学习。", "wǒ men zài yī qǐ xué xí", "Мы учимся вместе.", "", true],
+    ["我 和 我 的 朋友 在 一起。", "wǒ hé wǒ de péng you zài yī qǐ", "Я вместе со своим другом.", "", true],
+    ["他 是 我 的 好 朋友。", "tā shì wǒ de hǎo péng you", "Он мой хороший друг.", "", true],
+    ["你 的 朋友 叫 什么 名字？", "nǐ de péng you jiào shén me míng zi", "Как зовут твоего друга?", "", true],
+    ["我 的 朋友 住 在 俄罗斯。", "wǒ de péng you zhù zài é luó sī", "Мой друг живёт в России.", "", true],
+    ["我 想 见 我 的 朋友。", "wǒ xiǎng jiàn wǒ de péng you", "Я хочу увидеться со своим другом.", "", true],
+    ["明天 见！", "míng tiān jiàn", "Увидимся завтра!", "", true],
+    ["下午 见！", "xià wǔ jiàn", "Увидимся днём!", "", true],
+    ["我 喜欢 跳舞。", "wǒ xǐ huan tiào wǔ", "Мне нравится танцевать.", "", true],
+    ["她 很 会 跳舞。", "tā hěn huì tiào wǔ", "Она очень хорошо умеет танцевать.", "", true],
+    ["我们 一起 跳舞 吗？", "wǒ men yī qǐ tiào wǔ ma", "Потанцуем вместе?", "", true],
+    ["我 喜欢 走路。", "wǒ xǐ huan zǒu lù", "Мне нравится гулять пешком.", "", true],
+    ["我们 一起 出去 走路。", "wǒ men yī qǐ chū qù zǒu lù", "Мы вместе выходим погулять.", "", true],
+    ["我 在 听 老师 说。", "wǒ zài tīng lǎo shī shuō", "Я слушаю, как говорит учитель.", "", true],
+    ["我 想 听 你 说 汉语。", "wǒ xiǎng tīng nǐ shuō hàn yǔ", "Я хочу послушать, как ты говоришь по-китайски.", "", true],
+    ["我 在 写 汉字。", "wǒ zài xiě hàn zì", "Я пишу иероглифы.", "", true],
+    ["我 会 打字。", "wǒ huì dǎ zì", "Я умею печатать.", "", true],
+    ["他 在 家 打字 工作。", "tā zài jiā dǎ zì gōng zuò", "Он печатает и работает дома.", "", true],
+    ["我们 喜欢 观察 天气。", "wǒ men xǐ huan guān chá tiān qì", "Нам нравится наблюдать за погодой.", "", true],
+    ["他 在 观察 猫 和 狗。", "tā zài guān chá māo hé gǒu", "Он наблюдает за кошкой и собакой.", "x", true],
+    ["这 是 入口，不 是 出口。", "zhè shì rù kǒu bú shì chū kǒu", "Это вход, а не выход.", "", true],
+    ["出口 在 这里。", "chū kǒu zài zhè lǐ", "Выход здесь.", "", true],
+    ["入口 在 这里 吗？", "rù kǒu zài zhè lǐ ma", "Вход здесь?", "", true],
+    ["请问，我 可以 坐 这里 吗？", "qǐng wèn wǒ kě yǐ zuò zhè lǐ ma", "Скажите, пожалуйста, можно мне здесь сесть?", "", true],
+    ["我 星期天 休息。", "wǒ xīng qī tiān xiū xi", "В воскресенье я отдыхаю.", "x", true],
+    ["今天 我 不 工作，我 在 家 休息。", "jīn tiān wǒ bù gōng zuò wǒ zài jiā xiū xi", "Сегодня я не работаю, я отдыхаю дома.", "x", true]
+  ];
+
+  const OLD_SENTENCES = [
+    ["你 叫 什么 名字？", "nǐ jiào shén me míng zi", "Как тебя зовут?"],
+    ["您 叫 什么 名字？", "nín jiào shén me míng zi", "Как Вас зовут?"],
+    ["我 叫 波莉纳。", "wǒ jiào bō lì nà", "Меня зовут Полина."],
+    ["我 叫 葛利高里。", "wǒ jiào gé lì gāo lǐ", "Меня зовут Григорий."],
+    ["你 多少 岁？", "nǐ duō shǎo suì", "Сколько тебе лет?"],
+    ["我 二十三 岁。", "wǒ èr shí sān suì", "Мне 23 года."],
+    ["我 二十七 岁。", "wǒ èr shí qī suì", "Мне 27 лет."],
+    ["你 是 哪 国 人？", "nǐ shì nǎ guó rén", "Из какой ты страны?"],
+    ["我 是 俄罗斯 人。", "wǒ shì é luó sī rén", "Я из России."],
+    ["您 是 英国 人 吗？", "nín shì yīng guó rén ma", "Вы англичанин?"],
+    ["他 是 数学 老师。", "tā shì shù xué lǎo shī", "Он учитель математики."],
+    ["这个 老师 是 英语 老师。", "zhè ge lǎo shī shì yīng yǔ lǎo shī", "Этот учитель — учитель английского."],
+    ["我 是 学生。", "wǒ shì xué sheng", "Я студент."],
+    ["我 的 生日 是 一九九九 年 三 月 十二 日。", "wǒ de shēng rì shì yī jiǔ jiǔ jiǔ nián sān yuè shí èr rì", "Мой день рождения — 12 марта 1999 года."],
+    ["你 的 生日 是 几 月 几 号？", "nǐ de shēng rì shì jǐ yuè jǐ hào", "Какого числа у тебя день рождения?"],
+    ["今天 十 月 六 日。", "jīn tiān shí yuè liù rì", "Сегодня 6 октября."],
+    ["昨天 星期三。", "zuó tiān xīng qī sān", "Вчера была среда."],
+    ["明天 星期五。", "míng tiān xīng qī wǔ", "Завтра пятница."],
+    ["今天 十 月 八 号 星期四。", "jīn tiān shí yuè bā hào xīng qī sì", "Сегодня 8 октября, четверг."],
+    ["今天 星期天。", "jīn tiān xīng qī tiān", "Сегодня воскресенье."],
+    ["后天 十 月 八 日。", "hòu tiān shí yuè bā rì", "Послезавтра 8 октября."],
+    ["二零二六 年 十 月 一 日。", "èr líng èr liù nián shí yuè yī rì", "1 октября 2026 года."],
+    ["请问，现在 几 点？", "qǐng wèn xiàn zài jǐ diǎn", "Скажите, пожалуйста, который час?"],
+    ["现在 两 点 二十三 分。", "xiàn zài liǎng diǎn èr shí sān fēn", "Сейчас 2:23."],
+    ["现在 是 上午 十 点 一 刻。", "xiàn zài shì shàng wǔ shí diǎn yī kè", "Сейчас 10:15 утра."],
+    ["差 一 刻 三 点。", "chà yī kè sān diǎn", "Без четверти три."],
+    ["现在 三 点 半。", "xiàn zài sān diǎn bàn", "Сейчас половина четвёртого."],
+    ["现在 凌晨 四 点。", "xiàn zài líng chén sì diǎn", "Сейчас 4 часа утра."],
+    ["现在 下午 五 点。", "xiàn zài xià wǔ wǔ diǎn", "Сейчас пять часов дня."],
+    ["现在 是 深夜。", "xiàn zài shì shēn yè", "Сейчас глубокая ночь."],
+    ["大家 好！", "dà jiā hǎo", "Всем привет!"],
+    ["早上 好！", "zǎo shang hǎo", "Доброе утро!"],
+    ["晚上 好！", "wǎn shang hǎo", "Добрый вечер!"],
+    ["中午 好！", "zhōng wǔ hǎo", "Добрый день! (в полдень)"],
+    ["晚安！好梦！", "wǎn ān hǎo mèng", "Спокойной ночи! Сладких снов!", "x"],
+    ["再见！", "zài jiàn", "До свидания!"],
+    ["非常 好！", "fēi cháng hǎo", "Отлично!"],
+    ["这 是 我 的 狗。", "zhè shì wǒ de gǒu", "Это моя собака."],
+    ["这个 人 是 谁？", "zhè ge rén shì shéi", "Кто этот человек?"],
+    ["你 是 谁？", "nǐ shì shéi", "Кто ты?"],
+    ["他们 是 我 的 父母。", "tā men shì wǒ de fù mǔ", "Это мои родители."],
+    ["她们 是 我 的 妹妹。", "tā men shì wǒ de mèi mei", "Это мои младшие сёстры."],
+    ["她 是 我 的 姐姐。", "tā shì wǒ de jiě jie", "Она моя старшая сестра."],
+    ["这 是 我 的 家。", "zhè shì wǒ de jiā", "Это мой дом."],
+    ["我 有 一个 哥哥。", "wǒ yǒu yī ge gē ge", "У меня есть старший брат."],
+    ["我 有 两个 孩子。", "wǒ yǒu liǎng ge hái zi", "У меня двое детей."],
+    ["你 有 孩子 吗？", "nǐ yǒu hái zi ma", "У тебя есть дети?"],
+    ["他 的 妻子 很 漂亮。", "tā de qī zi hěn piào liang", "Его жена очень красивая."],
+    ["他 的 女儿 很 美。", "tā de nǚ ér hěn měi", "Его дочь красивая."],
+    ["他 的 儿子 不 矮。", "tā de ér zi bù ǎi", "Его сын не низкий."],
+    ["她 的 丈夫 是 老师。", "tā de zhàng fu shì lǎo shī", "Её муж — учитель."],
+    ["我 的 爸爸 是 老师。", "wǒ de bà ba shì lǎo shī", "Мой папа — учитель."],
+    ["我 的 妈妈 是 数学 老师。", "wǒ de mā ma shì shù xué lǎo shī", "Моя мама — учитель математики."],
+    ["我 的 哥哥 很 高。", "wǒ de gē ge hěn gāo", "Мой старший брат высокий."],
+    ["我 的 弟弟 很 帅。", "wǒ de dì di hěn shuài", "Мой младший брат красивый."],
+    ["他 是 我 的 外公。", "tā shì wǒ de wài gōng", "Он мой дедушка (по маме)."],
+    ["你 的 老师 是 谁？", "nǐ de lǎo shī shì shéi", "Кто твой учитель?"],
+    ["他们 家 有 猫 和 狗。", "tā men jiā yǒu māo hé gǒu", "У них дома есть кошка и собака.", "x"],
+    ["他们 的 猫 很 小。", "tā men de māo hěn xiǎo", "Их кошка маленькая."],
+    ["他们 的 狗 很 大。", "tā men de gǒu hěn dà", "Их собака большая."],
+    ["我 住 在 一个 大 城市。", "wǒ zhù zài yī ge dà chéng shì", "Я живу в большом городе."],
+    ["我 住 在 诺沃罗西斯克。", "wǒ zhù zài nuò wò luó xī sī kè", "Я живу в Новороссийске."],
+    ["我 爱 你。", "wǒ ài nǐ", "Я тебя люблю."],
+    ["我 喜欢 茶。", "wǒ xǐ huan chá", "Мне нравится чай."],
+    ["我 喜欢 下 雪。", "wǒ xǐ huan xià xuě", "Мне нравится, когда идёт снег."],
+    ["我 说 汉语。", "wǒ shuō hàn yǔ", "Я говорю по-китайски."],
+    ["今天 天气 很 冷。", "jīn tiān tiān qì hěn lěng", "Сегодня холодная погода."],
+    ["今天 天气 很 温暖。", "jīn tiān tiān qì hěn wēn nuǎn", "Сегодня тёплая погода."],
+    ["今天 很 热。", "jīn tiān hěn rè", "Сегодня жарко."],
+    ["今天 下 雪 了，风 很 大。", "jīn tiān xià xuě le fēng hěn dà", "Сегодня пошёл снег, сильный ветер."],
+    ["昨天 不 冷，昨天 是 晴天。", "zuó tiān bù lěng zuó tiān shì qíng tiān", "Вчера было не холодно, был ясный день."],
+    ["今天 多云。", "jīn tiān duō yún", "Сегодня облачно."],
+    ["今天 不 下 雨。", "jīn tiān bú xià yǔ", "Сегодня нет дождя."],
+    ["我 没有 工作。", "wǒ méi yǒu gōng zuò", "У меня нет работы."],
+    ["我 在 家 工作。", "wǒ zài jiā gōng zuò", "Я работаю дома."],
+    ["我 要 去 工作。", "wǒ yào qù gōng zuò", "Я собираюсь на работу."],
+    ["我 要 出去。", "wǒ yào chū qù", "Я хочу выйти."],
+    ["我 来 了！", "wǒ lái le", "Я пришёл!"],
+    ["每 年 一 次。", "měi nián yī cì", "Раз в год."],
+    ["我 的 狗 很 爱 叫。", "wǒ de gǒu hěn ài jiào", "Моя собака много лает."],
+    ["我 的 猫 很 爱 喵喵叫。", "wǒ de māo hěn ài miāo miāo jiào", "Моя кошка много мяукает."],
+    ["你 喜欢 猫 吗？", "nǐ xǐ huan māo ma", "Тебе нравятся кошки?"],
+    ["这 是 谁 的 狗？", "zhè shì shéi de gǒu", "Чья это собака?"],
+    ["我们 家 有 五个 人。", "wǒ men jiā yǒu wǔ ge rén", "В нашей семье пять человек."],
+    ["我 一个人 住。", "wǒ yī ge rén zhù", "Я живу один."],
+    ["我 的 爸爸 是 数学家。", "wǒ de bà ba shì shù xué jiā", "Мой папа — математик."],
+    ["这个 城市 很 美。", "zhè ge chéng shì hěn měi", "Этот город красивый."],
+    ["我 可以 说 俄语 吗？", "wǒ kě yǐ shuō é yǔ ma", "Можно мне говорить по-русски?"],
+    ["我 喜欢 汉字。", "wǒ xǐ huan hàn zì", "Мне нравятся иероглифы."],
+    ["对 不 对？", "duì bu duì", "Правильно?"],
+    ["今天 几 月 几 号？", "jīn tiān jǐ yuè jǐ hào", "Какое сегодня число?"],
+    ["今天 星期 几？", "jīn tiān xīng qī jǐ", "Какой сегодня день недели?"],
+    ["明天 是 我 的 生日。", "míng tiān shì wǒ de shēng rì", "Завтра мой день рождения."],
+    ["一 年 有 十二个 月。", "yī nián yǒu shí èr ge yuè", "В году двенадцать месяцев."],
+    ["一个 星期 有 七 天。", "yī ge xīng qī yǒu qī tiān", "В неделе семь дней."],
+    ["现在 差 五 分 八 点。", "xiàn zài chà wǔ fēn bā diǎn", "Сейчас без пяти восемь."],
+    ["我 要 出去 走走。", "wǒ yào chū qù zǒu zou", "Я хочу выйти погулять."],
+    ["我 可以 出去 吗？", "wǒ kě yǐ chū qù ma", "Можно мне выйти?"],
+    ["今天 很 凉爽。", "jīn tiān hěn liáng shuǎng", "Сегодня прохладно."],
+    ["今天 有 雾。", "jīn tiān yǒu wù", "Сегодня туман."],
+    ["昨天 下 雨 了。", "zuó tiān xià yǔ le", "Вчера шёл дождь."]
+  ].map(s => [s[0], s[1], s[2], s[3] || "", false]);
+
+  const SENTENCES = [...NEW_SENTENCES, ...OLD_SENTENCES];
+
+  const PUNCT_RE = /^[，。！？、]$/;
+  function parseSentence([h, p, ru, flag, isNew]) {
+    const syl = p.trim().split(/\s+/);
+    const raw = h.match(/[，。！？、]|[^\s，。！？、]+/g);
+    let k = 0;
+    const toks = raw.map(t => {
+      if (PUNCT_RE.test(t)) return { punct: t };
+      const chars = [...t];
+      const py = syl.slice(k, k + chars.length);
+      k += chars.length;
+      return { h: t, chars, py };
+    });
+    return { toks, ru, noOrder: flag === 'x', isNew: !!isNew, fullH: h.replace(/\s/g, ''), fullP: p };
+  }
+  const PARSED = SENTENCES.map(parseSentence);
+
+  const CHAR_PY = {};
+  function addReading(ch, py) { (CHAR_PY[ch] = CHAR_PY[ch] || new Set()).add(py); }
+  PARSED.forEach(s => s.toks.forEach(t => { if (!t.punct) t.chars.forEach((c, j) => addReading(c, t.py[j])); }));
+  VOCAB.forEach(([h, p]) => { const ps = p.split(' '); [...h].forEach((c, j) => ps[j] && addReading(c, ps[j])); });
+  const ALL_CHARS = Object.keys(CHAR_PY);
+
+  function getScopedVocab() {
+    return store.scope === 'new' ? NEW_VOCAB : VOCAB;
+  }
+  function getScopedSentences() {
+    return store.scope === 'new' ? PARSED.filter(s => s.isNew) : PARSED;
+  }
+
+  /* =====================================================================
+     ФОНЕТИКА (РЕЖИМЫ 9–11, с добавлением новых слогов/слов)
+     ===================================================================== */
+  const hardSyllables = [
+    ["nǖ", "nǘ", "nǚ", "nǜ"], ["lū", "lú", "lǔ", "lù"], ["lǖ", "lǘ", "lǚ", "lǜ"],
+    ["jū", "jú", "jǔ", "jù"], ["qū", "qú", "qǔ", "qù"], ["xū", "xú", "xǔ", "xù"],
+    ["zhī", "zhí", "zhǐ", "zhì"], ["zī", "zí", "zǐ", "zì"], ["chī", "chí", "chǐ", "chì"],
+    ["cī", "cí", "cǐ", "cì"], ["shī", "shí", "shǐ", "shì"], ["sī", "sí", "sǐ", "sì"],
+    ["rī", "rí", "rǐ", "rì"], ["zhuō", "zhuó", "zhuǒ", "zhuò"], ["zhōu", "zhóu", "zhǒu", "zhòu"],
+    ["chuāng", "chuáng", "chuǎng", "chuàng"], ["chuān", "chuán", "chuǎn", "chuàn"],
+    ["xiōng", "xióng", "xiǒng", "xiòng"], ["juān", "juán", "juǎn", "juàn"],
+    ["quān", "quán", "quǎn", "quàn"], ["xuān", "xuán", "xuǎn", "xuàn"],
+    ["qīng", "qíng", "qǐng", "qìng"], ["qīn", "qín", "qǐn", "qìn"],
+    ["xīng", "xíng", "xǐng", "xìng"], ["xīn", "xín", "xǐn", "xìn"],
+    ["jīng", "jíng", "jǐng", "jìng"], ["jīn", "jín", "jǐn", "jìn"],
+    ["guī", "guí", "guǐ", "guì"], ["liū", "liú", "liǔ", "liù"],
+    ["sān", "sán", "sǎn", "sàn"], ["shān", "shán", "shǎn", "shàn"]
+  ];
+  const newSyllableBases = [
+    "xiang", "hui", "ting", "xi", "xiu", "guan", "cha", "xie", "da", "zuo", "kai",
+    "xing", "ru", "kou", "peng", "you", "qi", "lu", "tiao", "wu", "zhao",
+    "xue", "yu", "nü", "qian", "jian", "nian", "liang", "dian", "zhu", "shuo", "shui"
+  ];
+  {
+    const have = new Set(hardSyllables.map(s => splitTone(s[0]).base));
+    newSyllableBases.forEach(b => {
+      const base = b.replace(/v/g, 'ü');
+      if (!have.has(base)) { hardSyllables.push(allTones(base)); have.add(base); }
+    });
+  }
+
+  const hardCombos = [
+    "xué xí", "xiū xi", "guān chá", "dǎ zì", "rù kǒu", "chū kǒu", "péng you",
+    "zài yī qǐ", "zǒu lù", "tiào wǔ", "huí lái", "yī diǎn diǎn", "wǒ huí lái le",
+    "qíng tiān", "xīng qī", "xīn qíng", "nǐ hǎo", "kě yǐ", "lǎo shī", "shù xué",
+    "hàn yǔ", "hàn zì", "zhōng wén", "míng zi", "shēng rì", "zài jiàn", "qǐng wèn",
+    "chéng shì", "xǐ huan", "tiān qì", "wēn nuǎn", "hán lěng", "liáng shuǎng",
+    "piào liang", "gāo xìng", "kuài lè", "nián qīng", "chū qù", "méi yǒu", "xiàn zài"
+  ];
+
+  const phoneticTwins = [
+    ["xiǎng", "xiāng", "xīn", "xīng"],
+    ["huí", "huì", "hēi", "hǎi"],
+    ["tīng", "qīng", "jīng", "xīng"],
+    ["xué xí", "xiū xi", "xuě xí", "xué shēng"],
+    ["guān chá", "guān jiā", "gōng chá", "guǎn chá"],
+    ["rù kǒu", "chū kǒu", "lù kǒu", "ròu kǒu"],
+    ["zǒu lù", "zuò lù", "zǒu rù", "zhǒu lù"],
+    ["tiào wǔ", "tiāo wǔ", "diào wǔ", "tiào wù"],
+    ["péng you", "pén you", "fēng you", "bēng you"],
+    ["zài yī qǐ", "zhài yī qǐ", "zài yī jǐ", "zài yī qī"],
+    ["zhī", "zī", "jī", "chī"], ["shī", "sī", "xī", "rī"],
+    ["qīn", "qīng", "xīn", "xīng"], ["nǚ", "lǚ", "nǔ", "lǔ"],
+    ["qíng tiān", "qīn tiān", "jīng tiān", "xīng tiān"],
+    ["shēng rì", "shēn rì", "shēng lì", "shēn lì"],
+    ["chéng shì", "chén shì", "céng shì", "chéng sì"],
+    ["liǎng diǎn", "liǎn diǎn", "niǎng diǎn", "liǎng tiǎn"]
+  ];
+
+  /* =====================================================================
+     СОСТОЯНИЕ ПРИЛОЖЕНИЯ
+     ===================================================================== */
+  let state = { mode: 'menu', score: 0 };
+  let lastPick = {};
+  let blitzInterval = null;
+
+  function pickNoRepeat(list, key) {
+    if (!list.length) return null;
+    let i = rand(list.length);
+    if (list.length > 1 && i === lastPick[key]) i = (i + 1) % list.length;
+    lastPick[key] = i;
+    return list[i];
+  }
+
+  function updateTopStats() {
+    document.getElementById('streak-pill').textContent = '🔥 ' + store.streak;
+    document.getElementById('xp-pill').textContent = '⭐ ' + store.xp;
+    document.getElementById('sound-btn').textContent = store.sound ? '🔊' : '🔇';
+    document.getElementById('theme-btn').textContent = store.dark ? '☀️' : '🌙';
+    document.getElementById('scope-new').classList.toggle('active', store.scope === 'new');
+    document.getElementById('scope-all').classList.toggle('active', store.scope === 'all');
+
+    const newSet = new Set(NEW_VOCAB.map(v => v[0]));
+    const masteredNew = store.mastered.filter(h => newSet.has(h)).length;
+    document.getElementById('mastery-text').textContent = `${masteredNew} / ${NEW_VOCAB.length}`;
+    document.getElementById('mastery-bar').style.width = `${Math.round((masteredNew / NEW_VOCAB.length) * 100)}%`;
+  }
+
+  window.setScope = function (sc) {
+    store.scope = sc;
+    saveStore();
+    playSfx('tap');
+  };
+
+  function showScreen(name) {
+    ['menu', 'flashcards', 'tones', 'blitz', 'slots', 'pairs', 'phonetics'].forEach(n => {
+      document.getElementById('screen-' + n).style.display = n === name ? 'block' : 'none';
+    });
+    const inGame = name !== 'menu';
+    document.getElementById('menu-back-btn').style.display = inGame ? 'inline-block' : 'none';
+    document.getElementById('brand-logo').style.display = inGame ? 'none' : 'flex';
+    if (tg && tg.BackButton) {
+      try {
+        if (inGame) tg.BackButton.show();
+        else tg.BackButton.hide();
+      } catch (e) {}
+    }
+  }
+
+  if (tg && tg.BackButton) {
+    try { tg.BackButton.onClick(() => goMenu()); } catch (e) {}
+  }
+
+  window.goMenu = function () {
+    clearInterval(blitzInterval);
+    blitzInterval = null;
+    state = { mode: 'menu', score: 0 };
+    showScreen('menu');
+    updateTopStats();
+  };
+
+  /* =====================================================================
+     РЕЖИМ 1: ФЛЕШКАРТЫ (ИЗУЧАЛКА)
+     ===================================================================== */
+  function startFlashcards() {
+    const list = getScopedVocab();
+    // Приоритет невыученным словам
+    const unmastered = shuffle(list.filter(v => !store.mastered.includes(v[0])));
+    const mastered = shuffle(list.filter(v => store.mastered.includes(v[0])));
+    state = {
+      mode: 'flashcards',
+      deck: [...unmastered, ...mastered],
+      idx: 0,
+      flipped: false,
+      knownCount: 0
+    };
+    showScreen('flashcards');
+    renderFlash();
+  }
+
+  function renderFlash() {
+    const item = state.deck[state.idx];
+    if (!item) return;
+    const [hz, py, ru, isNew] = item;
+    const isMastered = store.mastered.includes(hz);
+    document.getElementById('flash-card').classList.toggle('flipped', state.flipped);
+    document.getElementById('flash-front').style.display = state.flipped ? 'none' : 'block';
+    document.getElementById('flash-back').style.display = state.flipped ? 'block' : 'none';
+    document.getElementById('flash-hz').textContent = hz;
+    document.getElementById('flash-hz-back').textContent = hz;
+    document.getElementById('flash-py').textContent = py;
+    document.getElementById('flash-ru').textContent = ru;
+    document.getElementById('flash-counter').textContent = `${state.idx + 1} / ${state.deck.length}`;
+    document.getElementById('flash-badge').textContent = isMastered ? '✅ Изучено' : (isNew ? '✨ Новое' : 'Повтор');
+    document.getElementById('flash-sub').textContent = state.flipped ? 'Оцени, насколько хорошо ты помнишь слово' : 'Нажми на карточку, чтобы перевернуть';
+
+    // Подбираем пример предложения, содержащего это слово
+    const ex = PARSED.find(s => s.fullH.includes(hz));
+    const exBox = document.getElementById('flash-ex');
+    if (ex) {
+      exBox.style.display = 'block';
+      document.getElementById('flash-ex-hz').textContent = ex.fullH;
+      document.getElementById('flash-ex-py').textContent = ex.fullP;
+      document.getElementById('flash-ex-ru').textContent = ex.ru;
+    } else {
+      exBox.style.display = 'none';
+    }
+    document.getElementById('flash-score').textContent = `Пройдено за сессию: ${state.knownCount}`;
+  }
+
+  window.flipFlash = function () {
+    state.flipped = !state.flipped;
+    playSfx('tap');
+    haptic('tap');
+    renderFlash();
+  };
+  window.speakFlash = function (rate) {
+    const item = state.deck[state.idx];
+    if (item) speakZh(item[0], rate);
+  };
+  window.rateFlash = function (known) {
+    const item = state.deck[state.idx];
+    if (!item) return;
+    const hz = item[0];
+    if (known) {
+      if (!store.mastered.includes(hz)) store.mastered.push(hz);
+      state.knownCount += 1;
+      awardXP(5, true);
+    } else {
+      store.mastered = store.mastered.filter(x => x !== hz);
+      // Повторно подмешиваем слово через 3 карточки
+      const insertAt = Math.min(state.idx + 4, state.deck.length);
+      state.deck.splice(insertAt, 0, item);
+      playSfx('tap');
+      saveStore();
+    }
+    state.idx = (state.idx + 1) % state.deck.length;
+    state.flipped = false;
+    renderFlash();
+  };
+
+  /* =====================================================================
+     РЕЖИМ 2: ТОНОВЫЙ ТИР
+     ===================================================================== */
+  function buildToneRound() {
+    const list = getScopedVocab();
+    const item = pickNoRepeat(list, 'tones');
+    const syls = item[1].split(' ').map(s => {
+      const { base, tone } = splitTone(s);
+      return { base, targetTone: tone, targetText: s, picked: null, ok: null };
+    });
+    return { hz: item[0], py: item[1], ru: item[2], syls, cursor: 0, done: false, hadError: false };
+  }
+
+  function renderTones() {
+    showScreen('tones');
+    const t = state.task;
+    document.getElementById('tone-hz').textContent = t.hz;
+    document.getElementById('tone-ru').textContent = t.ru;
+    const box = document.getElementById('tone-syls');
+    box.innerHTML = '';
+    t.syls.forEach((s, i) => {
+      const d = document.createElement('div');
+      d.className = 'tone-syl';
+      if (!t.done && i === t.cursor) d.classList.add('active');
+      if (s.ok === true) d.classList.add('ok');
+      if (s.ok === false) d.classList.add('bad');
+      d.textContent = s.picked !== null ? applyTone(s.base, s.picked) : s.base;
+      box.appendChild(d);
+    });
+    const fb = document.getElementById('tone-feedback');
+    fb.className = 'feedback';
+    if (t.done) {
+      fb.classList.add('good');
+      fb.textContent = `✅ Верно: ${t.py}`;
+    } else if (t.syls[t.cursor] && t.syls[t.cursor].ok === false) {
+      fb.classList.add('bad');
+      fb.textContent = '❌ Другой тон — попробуй ещё раз!';
+    } else {
+      fb.textContent = '';
+    }
+    document.getElementById('tone-score').textContent = state.score ? `Решено за сессию: ${state.score}` : '';
+  }
+
+  window.pickTone = function (toneNum) {
+    const t = state.task;
+    if (!t || t.done) return;
+    const cur = t.syls[t.cursor];
+    cur.picked = toneNum;
+    if (toneNum === cur.targetTone) {
+      cur.ok = true;
+      t.cursor += 1;
+      if (t.cursor >= t.syls.length) {
+        t.done = true;
+        state.score += 1;
+        awardXP(t.hadError ? 5 : 10, true);
+        speakZh(t.hz, 0.9);
+      } else {
+        playSfx('tap');
+        haptic('tap');
+      }
+    } else {
+      cur.ok = false;
+      t.hadError = true;
+      awardXP(0, false);
+    }
+    renderTones();
+  };
+
+  window.speakToneWord = function () {
+    if (state.task) speakZh(state.task.hz, 0.85);
+  };
+
+  /* =====================================================================
+     РЕЖИМ 3: БЛИЦ 60 СЕКУНД
+     ===================================================================== */
+  window.startBlitz = function () {
+    clearInterval(blitzInterval);
+    state = {
+      mode: 'blitz',
+      timeLeft: 60,
+      pts: 0,
+      combo: 1,
+      correct: 0,
+      total: 0,
+      locked: false,
+      q: null
+    };
+    showScreen('blitz');
+    document.getElementById('blitz-active').style.display = 'block';
+    document.getElementById('blitz-end').style.display = 'none';
+    nextBlitzQ();
+    blitzInterval = setInterval(() => {
+      state.timeLeft -= 1;
+      updateBlitzHud();
+      if (state.timeLeft <= 0) finishBlitz();
+    }, 1000);
+  };
+
+  function updateBlitzHud() {
+    document.getElementById('blitz-timer').textContent = `⏱ ${Math.max(0, state.timeLeft)}с`;
+    document.getElementById('blitz-combo').textContent = `Комбо ×${state.combo}`;
+    document.getElementById('blitz-pts').textContent = `Счёт: ${state.pts}`;
+    document.getElementById('blitz-bar').style.width = `${Math.max(0, (state.timeLeft / 60) * 100)}%`;
+  }
+
+  function nextBlitzQ() {
+    const pool = getScopedVocab().length >= 4 ? getScopedVocab() : VOCAB;
+    const item = pick(pool);
+    const kind = pick(['hz2ru', 'ru2hz', 'hz2py']);
+    const distractors = shuffle(VOCAB.filter(v => v[0] !== item[0] && v[2] !== item[2] && v[1] !== item[1])).slice(0, 3);
+    const opts = shuffle([item, ...distractors]).map(v => ({
+      correct: v[0] === item[0],
+      label: kind === 'hz2ru' ? v[2] : (kind === 'ru2hz' ? v[0] : v[1]),
+      isHz: kind === 'ru2hz'
+    }));
+    state.q = { item, kind, opts };
+    state.locked = false;
+
+    const qTypeEl = document.getElementById('blitz-q-type');
+    const qMainEl = document.getElementById('blitz-q-main');
+    if (kind === 'hz2ru') {
+      qTypeEl.textContent = 'Выбери перевод';
+      qMainEl.textContent = item[0];
+      qMainEl.className = 'blitz-q-main hz';
+    } else if (kind === 'ru2hz') {
+      qTypeEl.textContent = 'Выбери иероглифы';
+      qMainEl.textContent = item[2];
+      qMainEl.className = 'blitz-q-main ru-q';
+    } else {
+      qTypeEl.textContent = 'Выбери пиньинь';
+      qMainEl.textContent = item[0];
+      qMainEl.className = 'blitz-q-main hz';
+    }
+
+    const optsBox = document.getElementById('blitz-opts');
+    optsBox.innerHTML = '';
+    opts.forEach((o, idx) => {
+      const b = document.createElement('button');
+      b.className = 'blitz-opt' + (o.isHz ? ' hz hz-opt' : '');
+      b.textContent = o.label;
+      b.onclick = () => answerBlitz(idx, b);
+      optsBox.appendChild(b);
+    });
+    document.getElementById('blitz-feedback').textContent = '';
+    updateBlitzHud();
+  }
+
+  function answerBlitz(idx, btnEl) {
+    if (state.locked || state.timeLeft <= 0) return;
+    state.locked = true;
+    state.total += 1;
+    const o = state.q.opts[idx];
+    const fb = document.getElementById('blitz-feedback');
+    if (o.correct) {
+      btnEl.classList.add('ok');
+      state.pts += 10 * state.combo;
+      state.combo = Math.min(4, state.combo + 1);
+      state.correct += 1;
+      awardXP(5, true);
+      fb.className = 'feedback good';
+      fb.textContent = `✅ +${10 * (state.combo > 1 ? state.combo - 1 : 1)} (${state.q.item[0]} · ${state.q.item[1]})`;
+    } else {
+      btnEl.classList.add('bad');
+      const allBtns = document.querySelectorAll('.blitz-opt');
+      state.q.opts.forEach((op, i) => { if (op.correct && allBtns[i]) allBtns[i].classList.add('ok'); });
+      state.combo = 1;
+      awardXP(0, false);
+      fb.className = 'feedback bad';
+      fb.textContent = `❌ Верно: ${state.q.item[0]} (${state.q.item[1]}) — ${state.q.item[2]}`;
+    }
+    updateBlitzHud();
+    setTimeout(() => {
+      if (state.mode === 'blitz' && state.timeLeft > 0) nextBlitzQ();
+    }, 520);
+  }
+
+  function finishBlitz() {
+    clearInterval(blitzInterval);
+    blitzInterval = null;
+    document.getElementById('blitz-active').style.display = 'none';
+    document.getElementById('blitz-end').style.display = 'block';
+    const isRecord = state.pts > store.bestBlitz;
+    if (isRecord) {
+      store.bestBlitz = state.pts;
+      saveStore();
+      if (typeof confetti === 'function') {
+        try { confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } }); } catch (e) {}
+      }
+    }
+    document.getElementById('blitz-final-pts').textContent = state.pts;
+    document.getElementById('blitz-final-detail').textContent =
+      `Верно: ${state.correct} из ${state.total} • Рекорд: ${store.bestBlitz}` + (isRecord ? ' 🏆 Новый рекорд!' : '');
+  }
+
+  /* =====================================================================
+     РЕЖИМЫ 4–7: ЯЧЕЙКИ / ПЕРЕТАСКИВАНИЕ
+     ===================================================================== */
+  function makeCards(texts, subs) {
+    return shuffle(texts.map((t, i) => ({ id: 'c' + i, text: t, sub: subs ? subs[i] : '' })));
+  }
+  function hzDistractors(answerChars, n) {
+    const answerSet = new Set(answerChars);
+    const answerPy = new Set();
+    answerChars.forEach(c => (CHAR_PY[c] || []).forEach(p => answerPy.add(p)));
+    const answerBases = new Set([...answerPy].map(p => splitTone(p).base));
+    const ok = c => !answerSet.has(c) && ![...(CHAR_PY[c] || [])].some(p => answerPy.has(p));
+    const similar = shuffle(ALL_CHARS.filter(c => ok(c) && [...CHAR_PY[c]].some(p => answerBases.has(splitTone(p).base))));
+    const out = similar.slice(0, n);
+    const rest = shuffle(ALL_CHARS.filter(c => ok(c) && !out.includes(c)));
+    while (out.length < n && rest.length) out.push(rest.pop());
+    return out;
+  }
+  function pyDistractors(answerPy, n) {
+    const set = new Set(answerPy);
+    const cands = new Set();
+    answerPy.forEach(p => {
+      const { base, tone } = splitTone(p);
+      if (!tone) return;
+      allTones(base).forEach(v => { if (!set.has(v)) cands.add(v); });
+    });
+    return shuffle([...cands]).slice(0, n);
+  }
+
+  function buildPyToHz() {
+    const s = pickNoRepeat(getScopedSentences(), 'py2hz');
+    let i = 0;
+    const groups = s.toks.map(t => t.punct ? { punct: t.punct } : { slots: t.chars.map((c, j) => ({ i: i++, label: t.py[j] })) });
+    const answerChars = s.toks.filter(t => !t.punct).flatMap(t => t.chars);
+    const extra = hzDistractors(answerChars, answerChars.length > 6 ? 3 : 2);
+    return {
+      labelStyle: 'py', tileStyle: 'hz', hintType: 'ru',
+      groups, answer: answerChars.map(c => [c]),
+      cards: makeCards([...answerChars, ...extra]),
+      prompt: null, ru: s.ru, reveal: { h: s.fullH, p: s.fullP, ru: s.ru }
+    };
+  }
+  function buildHzToPy() {
+    const s = pickNoRepeat(getScopedSentences(), 'hz2py');
+    let i = 0;
+    const groups = s.toks.map(t => t.punct ? { punct: t.punct } : { slots: t.chars.map(c => ({ i: i++, label: c })) });
+    const answerPy = s.toks.filter(t => !t.punct).flatMap(t => t.py);
+    const extra = pyDistractors(answerPy, answerPy.length > 6 ? 3 : 2);
+    return {
+      labelStyle: 'hz', tileStyle: 'py', hintType: 'ru',
+      groups, answer: answerPy.map(p => [p]),
+      cards: makeCards([...answerPy, ...extra]),
+      prompt: null, ru: s.ru, reveal: { h: s.fullH, p: s.fullP, ru: s.ru }
+    };
+  }
+  function buildOrder() {
+    const pool = getScopedSentences().filter(s => !s.noOrder && s.toks.filter(t => !t.punct).length >= 3);
+    const s = pickNoRepeat(pool.length ? pool : PARSED.filter(x => !x.noOrder), 'order');
+    let i = 0;
+    const words = s.toks.filter(t => !t.punct);
+    const groups = s.toks.map(t => t.punct ? { punct: t.punct } : { slots: [{ i: i++, label: '', wide: true }] });
+    return {
+      labelStyle: 'none', tileStyle: 'hz', hintType: 'cardsub',
+      groups, answer: words.map(w => [w.h]),
+      cards: makeCards(words.map(w => w.h), words.map(w => w.py.join(' '))),
+      prompt: { big: s.ru, small: 'Расставь слова по порядку' },
+      ru: s.ru, reveal: { h: s.fullH, p: s.fullP, ru: '' }
+    };
+  }
+
+  /* ---------- Время и даты ---------- */
+  const DIG = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+  const DIGP = ['líng', 'yī', 'èr', 'sān', 'sì', 'wǔ', 'liù', 'qī', 'bā', 'jiǔ'];
+  function numTok(n) {
+    if (n < 10) return { h: DIG[n], p: [DIGP[n]] };
+    const t = Math.floor(n / 10), u = n % 10;
+    let h = '', p = [];
+    if (t > 1) { h += DIG[t]; p.push(DIGP[t]); }
+    h += '十'; p.push('shí');
+    if (u) { h += DIG[u]; p.push(DIGP[u]); }
+    return { h, p };
+  }
+  function hourTok(h12) {
+    let n = h12 === 2 ? { h: '两', p: ['liǎng'] } : h12 === 1 ? { h: '一', p: ['yī'] } : numTok(h12);
+    return { h: n.h + '点', p: [...n.p, 'diǎn'] };
+  }
+  function periodTok(h24) {
+    if (h24 <= 3) return { h: '深夜', p: ['shēn', 'yè'] };
+    if (h24 <= 5) return { h: '凌晨', p: ['líng', 'chén'] };
+    if (h24 <= 8) return { h: '早上', p: ['zǎo', 'shang'] };
+    if (h24 <= 11) return { h: '上午', p: ['shàng', 'wǔ'] };
+    if (h24 === 12) return { h: '中午', p: ['zhōng', 'wǔ'] };
+    if (h24 <= 17) return { h: '下午', p: ['xià', 'wǔ'] };
+    if (h24 === 18) return { h: '傍晚', p: ['bàng', 'wǎn'] };
+    return { h: '晚上', p: ['wǎn', 'shang'] };
+  }
+  const RU_MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  const RU_WEEK = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
+  const DAY_WORDS = [
+    { h: '今天', p: ['jīn', 'tiān'], ru: 'Сегодня' }, { h: '昨天', p: ['zuó', 'tiān'], ru: 'Вчера было' },
+    { h: '明天', p: ['míng', 'tiān'], ru: 'Завтра' }, { h: '前天', p: ['qián', 'tiān'], ru: 'Позавчера было' },
+    { h: '后天', p: ['hòu', 'tiān'], ru: 'Послезавтра' }
+  ];
+
+  function buildTimeTask() {
+    const form = pick(['plain', 'plain', 'hour', 'half', 'ke1', 'ke3', 'cha', 'cha']);
+    const h24 = rand(24);
+    let m = 0;
+    if (form === 'plain') m = pick([5, 8, 10, 12, 20, 23, 25, 27, 34, 38, 40, 48, 52]);
+    if (form === 'half') m = 30;
+    if (form === 'ke1') m = 15;
+    if (form === 'ke3') m = 45;
+    if (form === 'cha') m = pick([45, 50, 55, 59]);
+    const h12 = h24 % 12 || 12;
+    const toks = [{ h: '现在', p: ['xiàn', 'zài'] }, periodTok(h24)];
+    let how = '';
+    if (form === 'plain') { toks.push(hourTok(h12)); const n = numTok(m); toks.push({ h: n.h + '分', p: [...n.p, 'fēn'] }); how = 'часы + минуты (分)'; }
+    if (form === 'hour') { toks.push(hourTok(h12)); how = 'ровно'; }
+    if (form === 'half') { toks.push(hourTok(h12)); toks.push({ h: '半', p: ['bàn'] }); how = 'через 半'; }
+    if (form === 'ke1') { toks.push(hourTok(h12)); toks.push({ h: '一刻', p: ['yī', 'kè'] }); how = 'через 刻'; }
+    if (form === 'ke3') { toks.push(hourTok(h12)); toks.push({ h: '三刻', p: ['sān', 'kè'] }); how = 'через 刻'; }
+    if (form === 'cha') {
+      const diff = 60 - m;
+      if (diff === 15) toks.push({ h: '差一刻', p: ['chà', 'yī', 'kè'] });
+      else { const n = numTok(diff); if (diff === 1) n.p = ['yī']; toks.push({ h: '差' + n.h + '分', p: ['chà', ...n.p, 'fēn'] }); }
+      toks.push(hourTok(h12 % 12 + 1));
+      how = 'через 差 («без …»)';
+    }
+    const clock = `${h24}:${String(m).padStart(2, '0')}`;
+    return { toks, big: clock, small: `«Сейчас ${clock}» — ${how}`, ru: `Сейчас ${clock}` };
+  }
+  function buildDateTask() {
+    const dw = pick(DAY_WORDS), mo = 1 + rand(12), d = 1 + rand(28), w = rand(7);
+    const mT = numTok(mo), dT = numTok(d);
+    const wd = w === 6 ? { h: '天', p: ['tiān'], acc: ['天', '日'] } : { h: DIG[w + 1], p: [DIGP[w + 1]] };
+    const toks = [
+      { h: dw.h, p: dw.p },
+      { h: mT.h + '月', p: [...mT.p, 'yuè'] },
+      { h: dT.h + '号', p: [...dT.p, 'hào'], accLast: ['号', '日'] },
+      { h: '星期' + wd.h, p: ['xīng', 'qī', ...wd.p], accLast: wd.acc }
+    ];
+    return { toks, big: `${d} ${RU_MONTHS[mo - 1]}, ${RU_WEEK[w]}`, small: `${dw.ru}: …`, ru: `${dw.ru} ${d} ${RU_MONTHS[mo - 1]}, ${RU_WEEK[w]}` };
+  }
+  function yearTok(y) {
+    const ds = String(y).split('').map(Number);
+    return { h: ds.map(x => DIG[x]).join('') + '年', p: [...ds.map(x => DIGP[x]), 'nián'] };
+  }
+  function buildBirthdayTask() {
+    const y = 1960 + rand(56), mo = 1 + rand(12), d = 1 + rand(28);
+    const mT = numTok(mo), dT = numTok(d);
+    const toks = [
+      { h: '我的', p: ['wǒ', 'de'] }, { h: '生日', p: ['shēng', 'rì'] }, { h: '是', p: ['shì'] },
+      yearTok(y), { h: mT.h + '月', p: [...mT.p, 'yuè'] }, { h: dT.h + '日', p: [...dT.p, 'rì'], accLast: ['日', '号'] }
+    ];
+    const dd = String(d).padStart(2, '0'), mm = String(mo).padStart(2, '0');
+    return { toks, big: `${dd}.${mm}.${y}`, small: '«Мой день рождения — …»', ru: `Мой день рождения — ${d} ${RU_MONTHS[mo - 1]} ${y} года` };
+  }
+  function buildTime() {
+    const r = Math.random();
+    const t = r < 0.55 ? buildTimeTask() : r < 0.82 ? buildDateTask() : buildBirthdayTask();
+    let i = 0;
+    const answer = [];
+    const groups = t.toks.map(tok => {
+      const chars = [...tok.h];
+      return {
+        slots: chars.map((c, j) => {
+          const acc = (j === chars.length - 1 && tok.accLast) ? tok.accLast : [c];
+          answer.push(acc);
+          return { i: i++, label: '', hint: tok.p[j] };
+        })
+      };
+    });
+    const canonical = answer.map(a => a[0]);
+    const traps = [];
+    if (canonical.includes('两')) traps.push('二');
+    else if (canonical.includes('二') && !t.big.includes('.')) traps.push('两');
+    const trapPool = ['十', '分', '点', '刻', '半', '差', '月', '年', '零', '号', '日', '天', '两', '二'].filter(c => !traps.includes(c));
+    traps.push(...shuffle(trapPool).slice(0, 3 - traps.length));
+    const fullP = t.toks.flatMap(x => x.p).join(' ');
+    return {
+      labelStyle: 'none', tileStyle: 'hz', hintType: 'labels',
+      groups, answer, cards: makeCards([...canonical, ...traps]),
+      prompt: { big: t.big, small: t.small }, ru: t.ru,
+      reveal: { h: canonical.join(''), p: fullP, ru: '' }
+    };
+  }
+
+  /* ---------- Пары (Режим 8) ---------- */
+  function buildPairs() {
+    const sub = Math.random() < 0.7 ? 'ru' : 'py';
+    const pool = getScopedVocab().length >= 5 ? getScopedVocab() : VOCAB;
+    const used = new Set(), items = [];
+    for (const v of shuffle(pool)) {
+      const key = sub === 'ru' ? v[2] : v[1];
+      if (used.has(key) || used.has(v[0])) continue;
+      used.add(key); used.add(v[0]);
+      items.push({ id: 'p' + items.length, h: v[0], p: v[1], r: v[2] });
+      if (items.length === 5) break;
+    }
+    return {
+      sub, items,
+      left: shuffle(items.map(x => x.id)), right: shuffle(items.map(x => x.id)),
+      matched: [], sel: null, wrong: null
+    };
+  }
+
+  /* =====================================================================
+     РОУТЕР РЕЖИМОВ
+     ===================================================================== */
+  const MODES = {
+    flashcards: { kind: 'flashcards' },
+    tones: { kind: 'tones' },
+    blitz: { kind: 'blitz' },
+    py2hz: { kind: 'slots', title: '4. Пиньинь → иероглифы', sub: 'Нажми на иероглиф или перетащи его под слог', build: buildPyToHz },
+    hz2py: { kind: 'slots', title: '5. Иероглифы → пиньинь', sub: 'Нажми на слог или перетащи его под иероглиф', build: buildHzToPy },
+    order: { kind: 'slots', title: '6. Собери фразу', sub: 'Расставь слова в правильном порядке', build: buildOrder },
+    time: { kind: 'slots', title: '7. Время и даты', sub: 'Собери ответ из иероглифов (подсказка покажет пиньинь)', build: buildTime },
+    pairs: { kind: 'pairs', title: '8. Найди пару', build: buildPairs },
+    syllables: { kind: 'phon', title: '9. Сложные слоги' },
+    combos: { kind: 'phon', title: '10. Коварные сочетания' },
+    twins: { kind: 'phon', title: '11. Фонетические близнецы' }
+  };
+
+  window.startGame = function (mode) {
+    clearInterval(blitzInterval);
+    blitzInterval = null;
+    playSfx('tap');
+    if (mode === 'flashcards') return startFlashcards();
+    if (mode === 'blitz') return startBlitz();
+    state = { mode, score: 0 };
+    window.nextRound();
+  };
+
+  window.nextRound = function () {
+    const def = MODES[state.mode];
+    if (!def) return;
+    const score = state.score || 0;
+    if (def.kind === 'tones') {
+      state = { mode: 'tones', task: buildToneRound(), score };
+      renderTones();
+      return;
+    }
+    if (def.kind === 'slots') {
+      const task = def.build();
+      state = { mode: state.mode, task, slots: task.answer.map(() => null), hint: false, solved: false, score };
+      renderSlots(def);
+      return;
+    }
+    if (def.kind === 'pairs') {
+      state = { mode: 'pairs', task: def.build(), solved: false, score };
+      renderPairs();
+      return;
+    }
+    if (def.kind === 'phon') {
+      let sourceList = hardSyllables;
+      if (state.mode === 'combos') sourceList = hardCombos;
+      if (state.mode === 'twins') sourceList = phoneticTwins;
+      let set = pickNoRepeat(sourceList, state.mode);
+      if (typeof set === 'string') set = toneVariants(set);
+      const cards = shuffle(set.map(text => ({ text, selected: false })));
+      const targetIdx = rand(cards.length);
+      state = { mode: state.mode, cards, targetIdx, answered: false, pickedIdx: -1, score };
+      renderPhon(def);
+      if (store.phonMode === 'quiz') setTimeout(() => speakPhonTarget(0.92), 180);
+    }
+  };
+
+  /* ---------- Логика ячеек (4–7) ---------- */
+  const cardById = id => state.task.cards.find(c => c.id === id);
+  function evaluateSlots() {
+    const filled = state.slots.every(x => x !== null);
+    if (!filled) { state.solved = false; return; }
+    const ok = state.slots.every((cid, i) => state.task.answer[i].includes(cardById(cid).text));
+    if (ok && !state.solved) {
+      state.score += 1;
+      awardXP(15, true);
+      speakZh(state.task.reveal.h, 0.9);
+    } else if (!ok) {
+      awardXP(0, false);
+    }
+    state.solved = ok;
+  }
+  function placeCard(cardId, slotIdx) {
+    if (state.solved || !state.task || !cardById(cardId)) return;
+    if (!(slotIdx >= 0 && slotIdx < state.slots.length)) return;
+    const src = state.slots.indexOf(cardId);
+    const occupant = state.slots[slotIdx];
+    if (src === slotIdx) return;
+    if (src >= 0) state.slots[src] = occupant;
+    state.slots[slotIdx] = cardId;
+    playSfx('tap');
+    evaluateSlots();
+    renderSlots(MODES[state.mode]);
+  }
+  function returnToPool(cardId) {
+    if (state.solved || !state.slots) return;
+    const src = state.slots.indexOf(cardId);
+    if (src < 0) return;
+    state.slots[src] = null;
+    playSfx('tap');
+    evaluateSlots();
+    renderSlots(MODES[state.mode]);
+  }
+  function tapCard(cardId) {
+    if (state.solved || !state.task || !cardById(cardId)) return;
+    if (state.slots.includes(cardId)) return returnToPool(cardId);
+    const empty = state.slots.indexOf(null);
+    if (empty >= 0) placeCard(cardId, empty);
+  }
+  window.toggleHint = function () {
+    state.hint = !state.hint;
+    playSfx('tap');
+    renderSlots(MODES[state.mode]);
+  };
+  window.resetSlots = function () {
+    state.slots = state.slots.map(() => null);
+    state.solved = false;
+    playSfx('tap');
+    renderSlots(MODES[state.mode]);
+  };
+  window.speakSlots = function () {
+    if (state.task && state.task.reveal) speakZh(state.task.reveal.h, 0.88);
+  };
+
+  /* ---------- Перетаскивание ---------- */
+  let drag = null;
+  function onTileDown(e) {
+    if (state.solved) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    drag = { id: el.dataset.card, el, x0: e.clientX, y0: e.clientY, ghost: null, over: null };
+  }
+  function dropTargetAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    return el.closest('[data-slot]') || el.closest('#slots-pool');
+  }
+  window.addEventListener('pointermove', e => {
+    if (!drag) return;
+    if (!drag.ghost) {
+      if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6) return;
+      const g = drag.el.cloneNode(true);
+      g.classList.add('ghost', 'tile');
+      g.classList.toggle('hz', !drag.el.classList.contains('py'));
+      document.body.appendChild(g);
+      drag.ghost = g;
+      drag.el.classList.add('dragging');
+    }
+    drag.ghost.style.left = e.clientX + 'px';
+    drag.ghost.style.top = e.clientY + 'px';
+    const t = dropTargetAt(e.clientX, e.clientY);
+    if (drag.over !== t) {
+      if (drag.over) drag.over.classList.remove('over');
+      if (t) t.classList.add('over');
+      drag.over = t;
+    }
+  });
+  function endDrag(e, cancelled) {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (d.over) d.over.classList.remove('over');
+    if (!d.ghost) { if (!cancelled) tapCard(d.id); return; }
+    d.ghost.remove();
+    d.el.classList.remove('dragging');
+    if (cancelled) return;
+    const t = dropTargetAt(e.clientX, e.clientY);
+    if (!t) return;
+    if (t.id === 'slots-pool') returnToPool(d.id);
+    else placeCard(d.id, Number(t.dataset.slot));
+  }
+  window.addEventListener('pointerup', e => endDrag(e, false));
+  window.addEventListener('pointercancel', e => endDrag(e, true));
+
+  /* ---------- Логика пар (8) ---------- */
+  let wrongTimer = null;
+  function tapPair(side, id) {
+    const t = state.task;
+    if (t.matched.includes(id) || t.wrong) return;
+    if (!t.sel || t.sel.side === side) {
+      t.sel = (t.sel && t.sel.side === side && t.sel.id === id) ? null : { side, id };
+      playSfx('tap');
+      renderPairs();
+      return;
+    }
+    const other = t.sel.id;
+    if (other === id) {
+      t.matched.push(id);
+      t.sel = null;
+      const it = t.items.find(x => x.id === id);
+      if (it) speakZh(it.h, 0.95);
+      if (t.matched.length === t.items.length) {
+        state.solved = true;
+        state.score += 1;
+        awardXP(15, true);
+      } else {
+        playSfx('ok');
+        haptic('ok');
+      }
+      renderPairs();
+    } else {
+      const L = side === 'L' ? id : other, R = side === 'R' ? id : other;
+      t.wrong = [L, R];
+      t.sel = null;
+      awardXP(0, false);
+      renderPairs();
+      clearTimeout(wrongTimer);
+      wrongTimer = setTimeout(() => {
+        if (state.mode !== 'pairs' || !state.task.wrong) return;
+        state.task.wrong = null;
+        renderPairs();
+      }, 650);
+    }
+  }
+
+  /* ---------- Логика фонетики (9–11) ---------- */
+  window.setPhonMode = function (pm) {
+    store.phonMode = pm;
+    saveStore();
+    playSfx('tap');
+    renderPhon(MODES[state.mode]);
+  };
+  window.speakPhonTarget = function (rate) {
+    if (!state.cards || state.targetIdx === undefined) return;
+    const targetPy = state.cards[state.targetIdx].text;
+    // Ищем подходящие иероглифы с таким пиньинем для точного произношения, иначе передаём слог
+    const vocabMatch = VOCAB.find(v => v[1] === targetPy);
+    if (vocabMatch) return speakZh(vocabMatch[0], rate);
+    const charMatch = ALL_CHARS.find(c => CHAR_PY[c] && CHAR_PY[c].has(targetPy));
+    speakZh(charMatch || targetPy, rate);
+  };
+  function tapPhonCard(idx) {
+    if (store.phonMode === 'free') {
+      state.cards = state.cards.map((c, i) => ({ ...c, selected: i === idx ? !c.selected : false }));
+      playSfx('tap');
+      renderPhon(MODES[state.mode]);
+      return;
+    }
+    if (state.answered) return;
+    state.answered = true;
+    state.pickedIdx = idx;
+    if (idx === state.targetIdx) {
+      state.score += 1;
+      awardXP(10, true);
+    } else {
+      awardXP(0, false);
+    }
+    renderPhon(MODES[state.mode]);
+  }
+
+  /* =====================================================================
+     ОТРИСОВКА ЭКРАНОВ 4–11
+     ===================================================================== */
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function makeTile(card) {
+    const t = el('div', 'tile' + (state.task.tileStyle === 'py' ? ' py' : ''));
+    t.dataset.card = card.id;
+    t.appendChild(document.createTextNode(card.text));
+    if (state.hint && state.task.hintType === 'cardsub' && card.sub) t.appendChild(el('span', 'tile-sub', card.sub));
+    t.addEventListener('pointerdown', onTileDown);
+    return t;
+  }
+
+  function renderSlots(def) {
+    showScreen('slots');
+    const task = state.task;
+    document.getElementById('slots-title').textContent = def.title;
+    document.getElementById('slots-sub').textContent = def.sub;
+    document.getElementById('hint-btn').classList.toggle('on', !!state.hint);
+    document.getElementById('slots-score').textContent = state.score ? `Решено за сессию: ${state.score}` : '';
+
+    const promptBox = document.getElementById('slots-prompt');
+    promptBox.innerHTML = '';
+    if (task.prompt) {
+      const big = el('div', 'prompt-big', task.prompt.big);
+      if (task.prompt.big.length > 20) big.style.fontSize = '20px';
+      promptBox.appendChild(big);
+      if (task.prompt.small) promptBox.appendChild(el('div', 'prompt-small', task.prompt.small));
+    }
+    if (state.hint && task.hintType === 'ru') promptBox.appendChild(el('div', 'prompt-small', '💡 ' + task.ru));
+    promptBox.style.display = promptBox.childNodes.length ? 'block' : 'none';
+
+    const filled = state.slots.every(x => x !== null);
+    const sentence = document.getElementById('slots-sentence');
+    sentence.innerHTML = '';
+    task.groups.forEach(g => {
+      if (g.punct) {
+        (sentence.lastElementChild || sentence).appendChild(el('span', 'punct', g.punct));
+        return;
+      }
+      const w = el('div', 'word');
+      g.slots.forEach(sl => {
+        const col = el('div', 'slot-col');
+        if (task.labelStyle === 'py') col.appendChild(el('div', 'slot-label', sl.label));
+        if (task.labelStyle === 'hz') col.appendChild(el('div', 'slot-label hz-label hz', sl.label));
+        if (task.hintType === 'labels') col.appendChild(el('div', 'slot-label hint-label', state.hint ? sl.hint : ''));
+        const box = el('div', 'slot' + (sl.wide ? ' wide' : ''));
+        box.dataset.slot = sl.i;
+        const cid = state.slots[sl.i];
+        if (cid) {
+          const card = cardById(cid);
+          box.classList.add('filled');
+          if (filled) box.classList.add(task.answer[sl.i].includes(card.text) ? 'ok' : 'bad');
+          box.appendChild(makeTile(card));
+        }
+        col.appendChild(box);
+        w.appendChild(col);
+      });
+      sentence.appendChild(w);
+    });
+
+    const pool = document.getElementById('slots-pool');
+    pool.innerHTML = '';
+    const placed = new Set(state.slots.filter(Boolean));
+    const free = task.cards.filter(c => !placed.has(c.id));
+    if (free.length) free.forEach(c => pool.appendChild(makeTile(c)));
+    else pool.appendChild(el('span', 'pool-empty', 'Все карточки расставлены'));
+
+    const fb = document.getElementById('slots-feedback');
+    fb.innerHTML = '';
+    fb.className = 'feedback';
+    if (state.solved) {
+      fb.classList.add('good');
+      fb.appendChild(el('div', '', '✅ Верно! Отличная работа!'));
+      const r = el('div', 'reveal');
+      r.appendChild(el('div', 'r-hz hz', task.reveal.h));
+      r.appendChild(el('div', 'r-py', task.reveal.p));
+      if (task.reveal.ru) r.appendChild(el('div', 'r-ru', task.reveal.ru));
+      fb.appendChild(r);
+    } else if (filled) {
+      fb.classList.add('bad');
+      fb.textContent = '❌ Есть ошибки — нажми на красные карточки, чтобы вернуть их';
+    }
+  }
+
+  function renderPairs() {
+    showScreen('pairs');
+    const t = state.task;
+    document.getElementById('pairs-sub').textContent = t.sub === 'ru' ? 'Соедини иероглифы с переводом' : 'Соедини иероглифы с пиньинем';
+    document.getElementById('pairs-score').textContent = state.score ? `Решено за сессию: ${state.score}` : '';
+    const byId = id => t.items.find(x => x.id === id);
+    const drawCol = (boxId, order, side) => {
+      const box = document.getElementById(boxId);
+      box.innerHTML = '';
+      order.forEach(id => {
+        const it = byId(id);
+        const isPy = side === 'R' && t.sub === 'py';
+        const d = el('div', `pair-item ${side}` + (isPy ? ' py' : ''));
+        d.appendChild(document.createTextNode(side === 'L' ? it.h : (t.sub === 'ru' ? it.r : it.p)));
+        if (t.matched.includes(id)) {
+          d.classList.add('done');
+          if (side === 'L') d.appendChild(el('span', 'pi-sub', t.sub === 'ru' ? it.p : it.r));
+        }
+        if (t.sel && t.sel.side === side && t.sel.id === id) d.classList.add('sel');
+        if (t.wrong && t.wrong[side === 'L' ? 0 : 1] === id) d.classList.add('wrong');
+        d.onclick = () => tapPair(side, id);
+        box.appendChild(d);
+      });
+    };
+    drawCol('pairs-left', t.left, 'L');
+    drawCol('pairs-right', t.right, 'R');
+    const fb = document.getElementById('pairs-feedback');
+    fb.className = 'feedback' + (state.solved ? ' good' : '');
+    fb.textContent = state.solved ? '✅ Все пары найдены!' : '';
+  }
+
+  function renderPhon(def) {
+    showScreen('phonetics');
+    document.getElementById('phon-title').textContent = def.title;
+    document.getElementById('phon-mode-quiz').classList.toggle('active', store.phonMode === 'quiz');
+    document.getElementById('phon-mode-free').classList.toggle('active', store.phonMode === 'free');
+    document.getElementById('phon-audio-bar').style.display = store.phonMode === 'quiz' ? 'flex' : 'none';
+    document.getElementById('phon-score').textContent = state.score ? `Угадано за сессию: ${state.score}` : '';
+
+    const container = document.getElementById('cards-container');
+    const hasLong = state.cards.some(c => c.text.includes(' ') || c.text.length > 6);
+    container.className = (state.mode === 'combos' || (state.mode === 'twins' && hasLong)) ? 'cards wide-cards' : 'cards';
+    container.innerHTML = '';
+    state.cards.forEach((card, i) => {
+      let cls = 'card';
+      if (store.phonMode === 'free' && card.selected) cls += ' selected';
+      if (store.phonMode === 'quiz' && state.answered) {
+        if (i === state.targetIdx) cls += ' ok';
+        else if (i === state.pickedIdx) cls += ' bad';
+      }
+      const d = el('div', cls, card.text);
+      d.onclick = () => tapPhonCard(i);
+      container.appendChild(d);
+    });
+
+    const fb = document.getElementById('phon-feedback');
+    fb.className = 'feedback';
+    if (store.phonMode === 'quiz' && state.answered) {
+      if (state.pickedIdx === state.targetIdx) {
+        fb.classList.add('good');
+        fb.textContent = '✅ Точно в цель!';
+      } else {
+        fb.classList.add('bad');
+        fb.textContent = `❌ Загадано было: ${state.cards[state.targetIdx].text}`;
+      }
+    } else {
+      fb.textContent = store.phonMode === 'quiz' ? 'Нажми «Прослушать» и выбери нужный вариант' : 'Выдели карточку, чтобы показать выбор';
+    }
+  }
+
+  // Инициализация
+  updateTopStats();
+  showScreen('menu');
+</script>
+</body>
+</html>
