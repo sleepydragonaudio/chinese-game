@@ -7,6 +7,7 @@
   <title>Тренажёр китайского — Telegram Mini App</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5.0/dist/hanzi-writer.min.js"></script>
   <style>
     :root {
       --bg: #f3f5f9;
@@ -796,6 +797,573 @@
       line-height: 1.1;
       margin: 6px 0;
     }
+
+    /* ---------- Calligraphy & New Modes (Прописи + Ключи) ---------- */
+    .hz-callig {
+      font-family: "Ma Shan Zheng", "KaiTi", "STKaiti", "Kaiti SC", "DFKai-SB", cursive, serif;
+      font-weight: 400;
+      letter-spacing: 0.02em;
+    }
+    .mistake-count-badge {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--red-soft);
+      color: var(--red);
+      border: 1px solid var(--red);
+    }
+    .write-card {
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 12px 16px;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .write-meta {
+      display: flex;
+      justify-content: center;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .write-py { font-size: 22px; font-weight: 800; color: var(--accent); }
+    .write-ru { font-size: 14.5px; font-weight: 600; color: var(--text-muted); }
+    .write-box-wrap {
+      display: flex;
+      justify-content: center;
+      margin: 6px 0 10px;
+    }
+    .write-box {
+      width: 256px;
+      height: 256px;
+      border-radius: 16px;
+      border: 2.5px solid var(--border-strong);
+      background: #ffffff;
+      position: relative;
+      touch-action: none;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.03);
+    }
+    body.dark .write-box {
+      background: #f8fafc;
+      border-color: var(--accent);
+    }
+    .write-grid-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    #hanzi-target {
+      position: relative;
+      z-index: 2;
+      width: 256px;
+      height: 256px;
+    }
+    .write-status {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+
+    /* ---------- Bottom Navigation & Tabs ---------- */
+    body { padding-bottom: 84px; }
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: center;
+      z-index: 90;
+      padding: 6px 12px max(8px, env(safe-area-inset-bottom));
+      box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.05);
+    }
+    .bottom-nav-inner {
+      width: 100%;
+      max-width: 540px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .nav-tab {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: 12px;
+      padding: 6px 4px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      font-size: 11px;
+      font-weight: 700;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-tab .nt-ico { font-size: 19px; line-height: 1.1; }
+    .nav-tab.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    /* ---------- Daily Hero (Anti-Owl Chill Mode) ---------- */
+    .daily-hero {
+      background: linear-gradient(135deg, #0f766e, #1e3a5f);
+      color: #ffffff;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 6px 20px rgba(15, 118, 110, 0.22);
+    }
+    .daily-hero-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 11px;
+    }
+    .daily-hero h2 {
+      margin: 0 0 3px;
+      font-size: 17px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .daily-hero p {
+      margin: 0;
+      font-size: 12.5px;
+      opacity: 0.9;
+      line-height: 1.35;
+    }
+    .daily-streak-chip {
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .anti-owl-box {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.13);
+      border: 1px dashed rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      padding: 9px 11px;
+      margin-bottom: 12px;
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.35;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .anti-owl-box:active { transform: scale(0.99); background: rgba(255, 255, 255, 0.2); }
+    .anti-owl-next {
+      font-size: 13px;
+      opacity: 0.75;
+      flex-shrink: 0;
+    }
+    .daily-start-btn {
+      width: 100%;
+      background: #ffffff;
+      color: #0f766e;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 14.5px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .daily-start-btn:active { transform: scale(0.98); }
+
+    /* ---------- Daily Workout Screen ---------- */
+    .daily-prog-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .daily-prog-track {
+      width: 100%;
+      height: 9px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .daily-prog-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #e11d48, #f97316);
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+
+    /* ---------- Dictionary & Stats Tab ---------- */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .stat-box {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    .stat-box-val { font-size: 20px; font-weight: 800; color: var(--text); }
+    .stat-box-lbl { font-size: 11.5px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+    .cloud-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--blue-soft);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--blue);
+      margin-bottom: 12px;
+    }
+    .dict-search {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      margin-bottom: 8px;
+      outline: none;
+    }
+    .dict-search:focus { border-color: var(--blue); }
+    .dict-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+    }
+    .dict-chip {
+      border: 1.5px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text-muted);
+      border-radius: 999px;
+      padding: 6px 11px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .dict-chip.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .dict-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      max-height: 430px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .dict-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.12s;
+    }
+    .dict-row:hover { border-color: var(--blue); }
+    .dict-hz { font-size: 24px; font-weight: 600; color: var(--text); min-width: 52px; }
+    .dict-mid { flex: 1; min-width: 0; }
+    .dict-py { font-size: 13px; font-weight: 700; color: var(--blue); }
+    .dict-ru { font-size: 12.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .srs-pill {
+      font-size: 10.5px;
+      font-weight: 800;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .srs-pill.due { background: var(--amber-soft); border-color: var(--amber); color: var(--amber); }
+    .srs-pill.ok { background: var(--green-soft); border-color: var(--green-border); color: var(--green); }
+    .srs-pill.err { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+
+    /* ---------- In-Page Modal Sheet ---------- */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-card {
+      width: 100%;
+      max-width: 440px;
+      max-height: 88vh;
+      overflow-y: auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+      text-align: center;
+    }
+    .modal-close-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .modal-hz { font-size: 52px; font-weight: 600; line-height: 1.15; margin: 4px 0; }
+    .modal-py { font-size: 20px; font-weight: 800; color: var(--accent); }
+    .modal-ru { font-size: 15px; font-weight: 600; color: var(--text); margin: 4px 0 12px; }
+    .modal-strokes-row {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0;
+    }
+    .mini-stroke-box {
+      width: 96px;
+      height: 96px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border-strong);
+      background: #ffffff;
+      cursor: pointer;
+    }
+    .srs-rate-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .srs-rate-btn {
+      border: 1.5px solid var(--border);
+      background: var(--surface-2);
+      border-radius: 12px;
+      padding: 9px 4px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      color: var(--text);
+    }
+    .srs-rate-btn strong { font-size: 12.5px; }
+    .srs-rate-btn span { font-size: 10.5px; color: var(--text-muted); font-weight: 600; }
+    .srs-rate-btn.bad { border-color: var(--red); background: var(--red-soft); color: var(--red); }
+    .srs-rate-btn.mid { border-color: var(--amber); background: var(--amber-soft); color: var(--amber); }
+    .srs-rate-btn.good { border-color: var(--green); background: var(--green-soft); color: var(--green); }
+
+    /* ---------- Topic Chips ---------- */
+    .topic-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 2px 0 4px;
+      margin-top: 8px;
+    }
+    .topic-chip {
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .topic-chip.active {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    /* ---------- Reading Mode (Mode 15) ---------- */
+    .read-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .read-nav-title {
+      flex: 1;
+      text-align: center;
+      min-width: 0;
+    }
+    .read-nav-title strong {
+      display: block;
+      font-size: 14.5px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .read-nav-title span {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .read-card {
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 16px 14px;
+      margin-bottom: 10px;
+      line-height: 2.05;
+    }
+    .read-sent {
+      margin-bottom: 8px;
+    }
+    .read-sent:last-child { margin-bottom: 0; }
+    .read-word {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      vertical-align: bottom;
+      padding: 2px 4px;
+      margin: 0 1px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+      line-height: 1.25;
+    }
+    .read-word:hover { background: var(--blue-soft); }
+    .read-word.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      box-shadow: inset 0 0 0 1.5px var(--accent);
+    }
+    .read-word .rw-hz {
+      font-size: 23px;
+      font-weight: 600;
+    }
+    .read-word .rw-py {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--blue);
+      display: none;
+      margin-bottom: 1px;
+    }
+    .read-card.show-py .read-word .rw-py { display: block; }
+    .read-punct {
+      font-size: 21px;
+      color: var(--text-muted);
+      vertical-align: bottom;
+      line-height: 1.4;
+      margin-right: 2px;
+    }
+    .read-popup {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: var(--surface);
+      border: 1.5px solid var(--accent);
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      min-height: 58px;
+    }
+    .read-popup.empty {
+      border-color: var(--border);
+      border-style: dashed;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+    .read-popup-left {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+    .read-popup-hz { font-size: 24px; font-weight: 700; color: var(--text); }
+    .read-popup-py { font-size: 14.5px; font-weight: 800; color: var(--accent); }
+    .read-popup-ru { font-size: 13px; font-weight: 600; color: var(--text-muted); width: 100%; margin-top: 1px; }
+    .read-trans {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .read-quiz {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .read-quiz-q {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .read-quiz-opts {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .read-quiz-opt {
+      width: 100%;
+      text-align: left;
+      padding: 9px 11px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .read-quiz-opt.ok { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+    .read-quiz-opt.bad { background: var(--red-soft); border-color: var(--red); color: var(--red); }
   </style>
 </head>
 <body>
@@ -817,118 +1385,215 @@
     </div>
   </div>
 
-  <!-- ================= MENU ================= -->
+  <!-- ================= MENU (3 ВКЛАДКИ) ================= -->
   <div id="screen-menu">
-    <div class="scope-card">
-      <div class="scope-pills">
-        <button class="scope-pill active" id="scope-new" onclick="setScope('new')">✨ Только новое</button>
-        <button class="scope-pill" id="scope-all" onclick="setScope('all')">📚 Весь материал</button>
+    <!-- ВКЛАДКА 1: УЧИТЬ -->
+    <div id="tab-learn">
+      <div class="daily-hero">
+        <div class="daily-hero-top">
+          <div>
+            <h2>🍵 Микс тренировок</h2>
+            <p id="daily-hero-sub">10 заданий вперемешку: SRS, тоны, слух и прописи</p>
+          </div>
+        </div>
+        <button class="anti-owl-box" id="anti-owl-box" onclick="cycleOwlJoke()" title="Нажми для ещё одной шутки">
+          <span id="anti-owl-text">🦉 Сова в отпуске. Чиллим.</span>
+          <span class="anti-owl-next">↻</span>
+        </button>
+        <button class="daily-start-btn" onclick="startGame('daily')">Запустить 10 заданий ➔</button>
       </div>
-      <div class="mastery-row">
-        <span>Изучено новых слов с доски</span>
-        <span id="mastery-text">0 / 24</span>
+
+      <div class="scope-card">
+        <div class="scope-pills">
+          <button class="scope-pill active" id="scope-new" onclick="setScope('new')">✨ Только новое</button>
+          <button class="scope-pill" id="scope-all" onclick="setScope('all')">📚 Весь материал</button>
+        </div>
+        <div class="topic-chips" id="scope-topics" style="margin-top:0; margin-bottom:8px;"></div>
+        <div class="mastery-row">
+          <span>Изучено новых слов с доски</span>
+          <span id="mastery-text">0 / 24</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="mastery-bar" style="width: 0%;"></div>
+        </div>
+        <div class="mastery-row" style="margin-top:8px; margin-bottom:0;">
+          <span>⏰ К повторению по SRS сегодня</span>
+          <span id="srs-due-text" style="color:var(--accent); font-weight:800;">0 слов</span>
+        </div>
       </div>
-      <div class="progress-track">
-        <div class="progress-fill" id="mastery-bar" style="width: 0%;"></div>
+
+      <div class="menu-group">Базовая тренировка</div>
+      <div class="menu-grid">
+        <button class="menu-btn featured" onclick="startGame('flashcards')">
+          <div class="menu-icon">🃏</div>
+          <div class="menu-info">
+            <div class="menu-title-row">
+              <strong>1. Карточки (SRS)</strong>
+              <span class="tag-new" id="flash-due-badge">SRS</span>
+            </div>
+            <span>Интервальное повторение (1 → 3 → 7 → 14 дней) с озвучкой и примерами</span>
+          </div>
+        </button>
+        <button class="menu-btn" onclick="startGame('writing')">
+          <div class="menu-icon">✍️</div>
+          <div class="menu-info">
+            <strong>12. Прописи (порядок черт)</strong>
+            <span>Рисуй иероглифы с контуром или по памяти — проверка порядка и направления</span>
+          </div>
+        </button>
+        <button class="menu-btn" onclick="startGame('reading')">
+          <div class="menu-icon">📖</div>
+          <div class="menu-info">
+            <div class="menu-title-row">
+              <strong>15. Чтение (мини-тексты)</strong>
+              <span class="tag-new" id="menu-read-badge" style="background:var(--blue);">0 / 8</span>
+            </div>
+            <span>Короткие тексты только из твоих иероглифов — нажми на слово для подсказки</span>
+          </div>
+        </button>
+        <button class="menu-btn" onclick="startGame('mistakes')">
+          <div class="menu-icon">🎯</div>
+          <div class="menu-info">
+            <div class="menu-title-row">
+              <strong>14. Работа над ошибками</strong>
+              <span class="mistake-count-badge" id="menu-mistakes-badge" style="display:none;">0</span>
+            </div>
+            <span>Отрабатывай именно те слова, в которых были промахи</span>
+          </div>
+        </button>
       </div>
     </div>
 
-    <div class="menu-group">Новые режимы</div>
-    <div class="menu-grid">
-      <button class="menu-btn featured" onclick="startGame('flashcards')">
-        <div class="menu-icon">🃏</div>
-        <div class="menu-info">
-          <div class="menu-title-row">
-            <strong>1. Карточки-изучалка</strong>
-            <span class="tag-new">NEW</span>
-          </div>
-          <span>Изучай новые иероглифы с доски с озвучкой, примерами и отметкой прогресса</span>
-        </div>
-      </button>
-      <button class="menu-btn" onclick="startGame('tones')">
-        <div class="menu-icon">🎵</div>
-        <div class="menu-info">
-          <div class="menu-title-row">
+    <!-- ВКЛАДКА 2: ИГРЫ -->
+    <div id="tab-games" style="display:none;">
+      <div class="menu-group" style="margin-top:4px;">Аркада, тоны и слух</div>
+      <div class="menu-grid">
+        <button class="menu-btn" onclick="startGame('tones')">
+          <div class="menu-icon">🎵</div>
+          <div class="menu-info">
             <strong>2. Тоновый тир</strong>
-            <span class="tag-new">NEW</span>
+            <span>Выбери правильный тон (1–4 или нейтральный) для каждого слога</span>
           </div>
-          <span>Выбери правильный тон (1–4 или нейтральный) для каждого слога слова</span>
-        </div>
-      </button>
-      <button class="menu-btn" onclick="startGame('blitz')">
-        <div class="menu-icon">⚡</div>
-        <div class="menu-info">
-          <div class="menu-title-row">
+        </button>
+        <button class="menu-btn" onclick="startGame('blitz')">
+          <div class="menu-icon">⚡</div>
+          <div class="menu-info">
             <strong>3. Блиц 60 секунд</strong>
-            <span class="tag-new">NEW</span>
+            <span>Быстрая аркада на скорость и комбо — рекорд сохраняется</span>
           </div>
-          <span>Быстрая аркада на скорость и комбо — рекорд сохраняется</span>
-        </div>
-      </button>
+        </button>
+        <button class="menu-btn" onclick="startGame('dictation')">
+          <div class="menu-icon">🎧</div>
+          <div class="menu-info">
+            <strong>13. Аудио-диктант</strong>
+            <span>Слушай фразу без текста и собирай её из иероглифов на слух</span>
+          </div>
+        </button>
+      </div>
+
+      <div class="menu-group">Иероглифы и фразы</div>
+      <div class="menu-grid">
+        <button class="menu-btn" onclick="startGame('py2hz')">
+          <div class="menu-icon">🧩</div>
+          <div class="menu-info">
+            <strong>4. Пиньинь → иероглифы</strong>
+            <span>Перетащи или нажми на иероглифы под нужные слоги (с ловушками)</span>
+          </div>
+        </button>
+        <button class="menu-btn" onclick="startGame('hz2py')">
+          <div class="menu-icon">🔤</div>
+          <div class="menu-info">
+            <strong>5. Иероглифы → пиньинь</strong>
+            <span>Подбери слоги с правильными тонами под иероглифы</span>
+          </div>
+        </button>
+        <button class="menu-btn" onclick="startGame('order')">
+          <div class="menu-icon">🧱</div>
+          <div class="menu-info">
+            <strong>6. Собери фразу</strong>
+            <span>Дан перевод — расставь китайские слова в правильном порядке</span>
+          </div>
+        </button>
+        <button class="menu-btn" onclick="startGame('time')">
+          <div class="menu-icon">🕒</div>
+          <div class="menu-info">
+            <strong>7. Время и даты</strong>
+            <span>«15:45», «четверг, 8 октября», дата рождения + ловушка 二 / 两</span>
+          </div>
+        </button>
+        <button class="menu-btn" onclick="startGame('pairs')">
+          <div class="menu-icon">🔗</div>
+          <div class="menu-info">
+            <strong>8. Найди пару</strong>
+            <span>Соедини слово с переводом или с пиньинем</span>
+          </div>
+        </button>
+      </div>
+
+      <div class="menu-group">Фонетика (с озвучкой)</div>
+      <div class="menu-grid">
+        <button class="menu-btn" onclick="startGame('syllables')">
+          <div class="menu-icon">🗣️</div>
+          <div class="menu-info">
+            <strong>9. Сложные слоги</strong>
+            <span>4 тона одного слога (ü, zh/z, ang/an) — на слух или с учителем</span>
+          </div>
+        </button>
+        <button class="menu-btn" onclick="startGame('combos')">
+          <div class="menu-icon">🌊</div>
+          <div class="menu-info">
+            <strong>10. Коварные сочетания</strong>
+            <span>Слова и связки с перепадами тонов (включая новые с доски)</span>
+          </div>
+        </button>
+        <button class="menu-btn" onclick="startGame('twins')">
+          <div class="menu-icon">👯</div>
+          <div class="menu-info">
+            <strong>11. Фонетические близнецы</strong>
+            <span>Похожие по звучанию слоги и слова (xīn/xīng, xuéxí/xiūxi)</span>
+          </div>
+        </button>
+      </div>
     </div>
 
-    <div class="menu-group">Иероглифы и фразы</div>
-    <div class="menu-grid">
-      <button class="menu-btn" onclick="startGame('py2hz')">
-        <div class="menu-icon">🧩</div>
-        <div class="menu-info">
-          <strong>4. Пиньинь → иероглифы</strong>
-          <span>Перетащи или нажми на иероглифы под нужные слоги (есть карточки-ловушки)</span>
+    <!-- ВКЛАДКА 3: СЛОВАРЬ И ПРОГРЕСС -->
+    <div id="tab-dict" style="display:none;">
+      <div class="cloud-banner">
+        <div style="display:flex; flex-direction:column; gap:2px; min-width:0;">
+          <span id="cloud-status-text">💾 Локальное сохранение</span>
+          <span id="cloud-sync-detail" style="font-size:11px; opacity:0.85;">Авто</span>
         </div>
-      </button>
-      <button class="menu-btn" onclick="startGame('hz2py')">
-        <div class="menu-icon">🔤</div>
-        <div class="menu-info">
-          <strong>5. Иероглифы → пиньинь</strong>
-          <span>Подбери слоги с правильными тонами под иероглифы</span>
+        <button id="cloud-sync-btn" onclick="manualCloudSync()" style="display:none; border:1px solid var(--blue); background:var(--surface); color:var(--blue); border-radius:8px; padding:5px 9px; font-size:11.5px; font-weight:700; cursor:pointer; flex-shrink:0;">🔄 Синхр.</button>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-box-val" id="st-mastered">0</div>
+          <div class="stat-box-lbl">Слов в SRS (уров. 2+)</div>
         </div>
-      </button>
-      <button class="menu-btn" onclick="startGame('order')">
-        <div class="menu-icon">🧱</div>
-        <div class="menu-info">
-          <strong>6. Собери фразу</strong>
-          <span>Дан перевод — расставь китайские слова в правильном порядке</span>
+        <div class="stat-box">
+          <div class="stat-box-val" id="st-due">0</div>
+          <div class="stat-box-lbl">К повторению сегодня</div>
         </div>
-      </button>
-      <button class="menu-btn" onclick="startGame('time')">
-        <div class="menu-icon">🕒</div>
-        <div class="menu-info">
-          <strong>7. Время и даты</strong>
-          <span>«15:45», «четверг, 8 октября», дата рождения + ловушка 二 / 两</span>
+        <div class="stat-box">
+          <div class="stat-box-val" id="st-days">0</div>
+          <div class="stat-box-lbl">Дней без паники</div>
         </div>
-      </button>
-      <button class="menu-btn" onclick="startGame('pairs')">
-        <div class="menu-icon">🔗</div>
-        <div class="menu-info">
-          <strong>8. Найди пару</strong>
-          <span>Соедини слово с переводом или с пиньинем</span>
+        <div class="stat-box">
+          <div class="stat-box-val" id="st-blitz">0</div>
+          <div class="stat-box-lbl">Рекорд в Блице</div>
         </div>
-      </button>
-    </div>
+      </div>
 
-    <div class="menu-group">Фонетика (с озвучкой)</div>
-    <div class="menu-grid">
-      <button class="menu-btn" onclick="startGame('syllables')">
-        <div class="menu-icon">🗣️</div>
-        <div class="menu-info">
-          <strong>9. Сложные слоги</strong>
-          <span>4 тона одного слога (ü, zh/z, ang/an, uo/ou) — на слух или с учителем</span>
-        </div>
-      </button>
-      <button class="menu-btn" onclick="startGame('combos')">
-        <div class="menu-icon">🌊</div>
-        <div class="menu-info">
-          <strong>10. Коварные сочетания</strong>
-          <span>Слова и связки с перепадами тонов (добавлены слова с новой доски)</span>
-        </div>
-      </button>
-      <button class="menu-btn" onclick="startGame('twins')">
-        <div class="menu-icon">👯</div>
-        <div class="menu-info">
-          <strong>11. Фонетические близнецы</strong>
-          <span>Похожие по звучанию слоги и слова (xīn/xīng, zh/z, xuéxí/xiūxi)</span>
-        </div>
-      </button>
+      <input type="text" class="dict-search" id="dict-search" placeholder="Поиск: иероглиф, pinyin или перевод..." oninput="renderDict()">
+      <div class="dict-filters">
+        <button class="dict-chip active" id="df-all" onclick="setDictFilter('all')">Все</button>
+        <button class="dict-chip" id="df-new" onclick="setDictFilter('new')">✨ Новое</button>
+        <button class="dict-chip" id="df-due" onclick="setDictFilter('due')">⏰ Повторить</button>
+        <button class="dict-chip" id="df-learned" onclick="setDictFilter('learned')">✅ Выучено</button>
+        <button class="dict-chip" id="df-err" onclick="setDictFilter('err')">🎯 Ошибки</button>
+      </div>
+      <div class="topic-chips" id="dict-topics" style="margin-top:-4px; margin-bottom:10px;"></div>
+      <div class="dict-list" id="dict-list"></div>
     </div>
   </div>
 
@@ -960,9 +1625,10 @@
         </div>
       </div>
     </div>
-    <div class="btn-row">
-      <button class="tool-btn bad" onclick="rateFlash(false)">🔄 Ещё учу</button>
-      <button class="tool-btn good" onclick="rateFlash(true)">✅ Знаю</button>
+    <div class="srs-rate-row">
+      <button class="srs-rate-btn bad" onclick="rateFlash(0)"><strong>🔄 Забыл</strong><span>снова</span></button>
+      <button class="srs-rate-btn mid" onclick="rateFlash(1)"><strong>🤔 Трудно</strong><span id="srs-lbl-mid">+1 дн.</span></button>
+      <button class="srs-rate-btn good" onclick="rateFlash(2)"><strong>✅ Легко</strong><span id="srs-lbl-good">+3 дн.</span></button>
     </div>
     <div class="score-line" id="flash-score"></div>
   </div>
@@ -1064,6 +1730,202 @@
     <button class="btn-primary" onclick="nextRound()">Следующее задание ➔</button>
     <div class="score-line" id="phon-score"></div>
   </div>
+
+  <!-- ================= MODE 12: WRITING (ПРОПИСИ) ================= -->
+  <div id="screen-writing" style="display:none;">
+    <div class="game-header">12. Прописи (порядок и направление черт)</div>
+    <div class="mode-switch">
+      <button class="scope-pill active" id="write-mode-trace" onclick="setWriteMode('trace')">✏️ С контуром</button>
+      <button class="scope-pill" id="write-mode-blind" onclick="setWriteMode('blind')">🧠 По памяти</button>
+    </div>
+    <div class="write-card">
+      <div class="write-meta">
+        <span class="write-py" id="write-py">想</span>
+        <span class="write-ru" id="write-ru">хотеть</span>
+      </div>
+      <div class="audio-bar" style="margin-bottom:6px;">
+        <button class="audio-btn" onclick="speakWriteChar(0.92)">🔊 Озвучить</button>
+        <button class="audio-btn secondary" onclick="animateWriteChar()">▶️ Показать порядок</button>
+      </div>
+      <div class="write-box-wrap">
+        <div class="write-box">
+          <svg class="write-grid-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <line x1="0" y1="50" x2="100" y2="50" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3" />
+            <line x1="50" y1="0" x2="50" y2="100" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3" />
+            <line x1="0" y1="0" x2="100" y2="100" stroke="#f1f5f9" stroke-width="0.9" stroke-dasharray="3,3" />
+            <line x1="100" y1="0" x2="0" y2="100" stroke="#f1f5f9" stroke-width="0.9" stroke-dasharray="3,3" />
+          </svg>
+          <div id="hanzi-target"></div>
+        </div>
+      </div>
+      <div class="write-status" id="write-status">Обведи иероглиф по порядку черт</div>
+    </div>
+    <div class="feedback" id="write-feedback"></div>
+    <div class="btn-row">
+      <button class="tool-btn" onclick="restartWriteQuiz()">↺ Заново</button>
+      <button class="tool-btn" onclick="nextRound()">Следующий ➔</button>
+    </div>
+    <div class="score-line" id="write-score"></div>
+  </div>
+
+  <!-- ================= MODE 14: MISTAKES REVIEW (РАБОТА НАД ОШИБКАМИ) ================= -->
+  <div id="screen-mistakes" style="display:none;">
+    <div class="game-header">14. Работа над ошибками</div>
+    <div class="game-sub" id="mistakes-sub">Слова, в которых были ошибки — ответь верно 2 раза, чтобы закрыть слово</div>
+    <div id="mistakes-empty" style="display:none;" class="blitz-summary">
+      <div style="font-size:38px; margin-bottom:6px;">🎉</div>
+      <div style="font-size:16px; font-weight:800; margin-bottom:6px;">Список ошибок пуст!</div>
+      <div style="font-size:13px; color:var(--text-muted); line-height:1.4;">
+        Поиграй в другие режимы — если ошибёшься в каком-то слове или иероглифе, оно автоматически попадёт сюда для отработки.
+      </div>
+    </div>
+    <div id="mistakes-active">
+      <div class="audio-bar">
+        <button class="audio-btn" onclick="speakMistakeItem(0.92)">🔊 Озвучить</button>
+        <button class="audio-btn secondary" onclick="speakMistakeItem(0.68)">🐢 Медленно</button>
+      </div>
+      <div class="blitz-q">
+        <div class="blitz-q-type" id="mistakes-q-type">Выбери перевод</div>
+        <div class="blitz-q-main hz" id="mistakes-q-main">朋友</div>
+      </div>
+      <div class="blitz-opts" id="mistakes-opts"></div>
+      <div class="feedback" id="mistakes-feedback"></div>
+      <button class="btn-primary" onclick="nextRound()">Следующее слово ➔</button>
+      <div class="score-line" id="mistakes-score"></div>
+    </div>
+  </div>
+  <!-- ================= DAILY WORKOUT (СВОБОДНЫЙ МИКС) ================= -->
+  <div id="screen-daily" style="display:none;">
+    <div class="game-header">🍵 Свободный микс</div>
+    <div id="daily-active">
+      <div class="daily-prog-row">
+        <span id="daily-step-label">Задание 1 из 10</span>
+        <span id="daily-kind-label">Словарь</span>
+      </div>
+      <div class="daily-prog-track"><div class="daily-prog-fill" id="daily-prog-fill" style="width:10%;"></div></div>
+      <div id="daily-quiz-area">
+        <div class="audio-bar" id="daily-audio-bar">
+          <button class="audio-btn" onclick="speakDaily(0.92)">🔊 Озвучить</button>
+          <button class="audio-btn secondary" onclick="speakDaily(0.68)">🐢 Медленно</button>
+        </div>
+        <div class="blitz-q" id="daily-q-box">
+          <div class="blitz-q-type" id="daily-q-type">Выбери перевод</div>
+          <div class="blitz-q-main hz" id="daily-q-main">朋友</div>
+        </div>
+        <div class="blitz-opts" id="daily-opts"></div>
+      </div>
+      <div id="daily-write-area" style="display:none;">
+        <div class="write-card">
+          <div class="write-meta">
+            <span class="write-py" id="daily-w-py">想</span>
+            <span class="write-ru" id="daily-w-ru">хотеть</span>
+          </div>
+          <div class="audio-bar" style="margin-bottom:6px;">
+            <button class="audio-btn" onclick="speakDaily(0.92)">🔊 Озвучить</button>
+            <button class="audio-btn secondary" onclick="animateDailyWrite()">▶️ Показать порядок</button>
+          </div>
+          <div class="write-box-wrap">
+            <div class="write-box">
+              <svg class="write-grid-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <line x1="0" y1="50" x2="100" y2="50" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3" />
+                <line x1="50" y1="0" x2="50" y2="100" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="3,3" />
+                <line x1="0" y1="0" x2="100" y2="100" stroke="#f1f5f9" stroke-width="0.9" stroke-dasharray="3,3" />
+                <line x1="100" y1="0" x2="0" y2="100" stroke="#f1f5f9" stroke-width="0.9" stroke-dasharray="3,3" />
+              </svg>
+              <div id="daily-hanzi-target" style="position:relative; z-index:2; width:256px; height:256px;"></div>
+            </div>
+          </div>
+          <div class="write-status" id="daily-w-status">Обведи иероглиф по порядку черт</div>
+        </div>
+      </div>
+      <div class="feedback" id="daily-feedback"></div>
+      <button class="btn-primary" id="daily-next-btn" style="display:none;" onclick="nextDailyStep()">Дальше ➔</button>
+    </div>
+    <div id="daily-done" style="display:none;">
+      <div class="blitz-summary">
+        <div style="font-size:40px; margin-bottom:4px;">🍵</div>
+        <div style="font-size:18px; font-weight:800; margin-bottom:4px;">Готово! Ни одна сова не пострадала</div>
+        <div class="blitz-big-score" id="daily-done-xp">+50 XP</div>
+        <div id="daily-done-detail" style="font-size:13.5px; color:var(--text-muted);"></div>
+      </div>
+      <button class="btn-accent" onclick="goMenu()">На главный экран</button>
+    </div>
+  </div>
+
+  <!-- ================= MODE 15: READING (МИНИ-ТЕКСТЫ) ================= -->
+  <div id="screen-reading" style="display:none;">
+    <div class="game-header">15. Чтение (мини-тексты)</div>
+    <div class="read-nav">
+      <button class="icon-btn" onclick="prevReadText()" title="Предыдущий текст">←</button>
+      <div class="read-nav-title">
+        <strong id="read-title">Мой день с китайским</strong>
+        <span id="read-meta">Текст 1 из 8</span>
+      </div>
+      <button class="icon-btn" onclick="nextReadText()" title="Следующий текст">→</button>
+    </div>
+    <div class="audio-bar">
+      <button class="audio-btn" onclick="speakReadText(0.9)">🔊 Прослушать текст</button>
+      <button class="audio-btn secondary" onclick="speakReadText(0.68)">🐢 Медленно</button>
+    </div>
+    <div class="read-card hz" id="read-card"></div>
+    <div class="read-popup empty" id="read-popup">Нажми на любое слово в тексте — покажу пиньинь и перевод</div>
+    <div class="btn-row">
+      <button class="tool-btn" id="read-py-btn" onclick="toggleReadPinyin()">👁️ Пиньинь</button>
+      <button class="tool-btn" id="read-tr-btn" onclick="toggleReadTrans()">🇷🇺 Перевод</button>
+    </div>
+    <div class="read-trans" id="read-trans" style="display:none;"></div>
+    <div class="read-quiz" id="read-quiz">
+      <div class="read-quiz-q" id="read-quiz-q"></div>
+      <div class="read-quiz-opts" id="read-quiz-opts"></div>
+    </div>
+    <button class="btn-primary" id="read-done-btn" onclick="markReadDone()">✅ Отметить прочитанным (+15 XP)</button>
+  </div>
+</div>
+
+<!-- ================= BOTTOM NAVIGATION ================= -->
+<nav class="bottom-nav" id="bottom-nav">
+  <div class="bottom-nav-inner">
+    <button class="nav-tab active" id="nav-learn" onclick="switchTab('learn')">
+      <span class="nt-ico">🎯</span>
+      <span>Учить</span>
+    </button>
+    <button class="nav-tab" id="nav-games" onclick="switchTab('games')">
+      <span class="nt-ico">🎮</span>
+      <span>Игры</span>
+    </button>
+    <button class="nav-tab" id="nav-dict" onclick="switchTab('dict')">
+      <span class="nt-ico">📖</span>
+      <span>Словарь</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ================= DICTIONARY WORD MODAL ================= -->
+<div class="modal-backdrop" id="word-modal" onclick="if(event.target===this) closeWordModal()">
+  <div class="modal-card">
+    <div class="modal-close-row">
+      <span class="srs-pill" id="modal-srs-pill">Новое</span>
+      <button class="icon-btn" onclick="closeWordModal()">✕</button>
+    </div>
+    <div class="modal-hz hz" id="modal-hz">朋友</div>
+    <div class="modal-py" id="modal-py">péng you</div>
+    <div class="modal-ru" id="modal-ru">друг</div>
+    <div class="audio-bar">
+      <button class="audio-btn" onclick="speakModalWord(0.92)">🔊 Озвучить</button>
+      <button class="audio-btn secondary" onclick="speakModalWord(0.68)">🐢 Медленно</button>
+    </div>
+    <div style="font-size:11.5px; color:var(--text-muted); font-weight:700; margin-top:4px;">Нажми на иероглиф, чтобы увидеть порядок черт:</div>
+    <div class="modal-strokes-row" id="modal-strokes-row"></div>
+    <div class="flash-example" id="modal-ex" style="display:none; text-align:left; margin-bottom:12px;">
+      <div class="ex-hz hz" id="modal-ex-hz"></div>
+      <div class="ex-py" id="modal-ex-py"></div>
+      <div class="ex-ru" id="modal-ex-ru"></div>
+    </div>
+    <div class="btn-row" style="margin-bottom:0;">
+      <button class="tool-btn good" id="modal-mark-btn" onclick="toggleModalLearned()">✅ Отметить выученным</button>
+      <button class="tool-btn" onclick="closeWordModal()">Закрыть</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1071,6 +1933,7 @@
      TELEGRAM MINI APP & STORAGE & AUDIO HELPERS
      ===================================================================== */
   const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+  const tgSupports = (ver) => !!(tg && typeof tg.isVersionAtLeast === 'function' && tg.isVersionAtLeast(ver));
   if (tg) {
     try {
       tg.ready();
@@ -1080,7 +1943,7 @@
   }
 
   function haptic(type) {
-    if (!tg || !tg.HapticFeedback) return;
+    if (!tgSupports('6.1') || !tg.HapticFeedback) return;
     try {
       if (type === 'ok') tg.HapticFeedback.notificationOccurred('success');
       else if (type === 'bad') tg.HapticFeedback.notificationOccurred('error');
@@ -1088,17 +1951,287 @@
     } catch (e) {}
   }
 
-  const STORAGE_KEY = 'zh_trainer_tg_v2';
-  let store = { xp: 0, streak: 0, bestBlitz: 0, mastered: [], sound: true, dark: false, scope: 'new', phonMode: 'quiz' };
+  const STORAGE_KEY = 'zh_trainer_tg_v3';
+  const SRS_INTERVALS = [0, 1, 3, 7, 14, 30];
+  function todayNum() { return Math.floor(Date.now() / 86400000); }
+
+  let store = {
+    xp: 0, streak: 0, dayStreak: 0, lastDay: 0, daysDone: [],
+    bestBlitz: 0, mastered: [], srs: {}, mistakes: {}, readTexts: [],
+    sound: true, dark: false, scope: 'new', topic: 'all', phonMode: 'quiz', writeMode: 'trace',
+    updatedAt: 0
+  };
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || localStorage.getItem('zh_trainer_tg_v2') || 'null');
     if (saved && typeof saved === 'object') store = { ...store, ...saved };
   } catch (e) {}
+  if (!store.srs || typeof store.srs !== 'object') store.srs = {};
+  if (!store.mistakes || typeof store.mistakes !== 'object') store.mistakes = {};
+  if (!Array.isArray(store.daysDone)) store.daysDone = [];
+  if (!Array.isArray(store.mastered)) store.mastered = [];
+  if (!Array.isArray(store.readTexts)) store.readTexts = [];
+  if (typeof store.topic !== 'string') store.topic = 'all';
+  if (typeof store.updatedAt !== 'number') store.updatedAt = 0;
   if (store.dark) document.body.classList.add('dark');
 
-  function saveStore() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch (e) {}
+  const CLOUD_CHUNK_SIZE = 3400;
+  const CLOUD_SRS_MAX_CHUNKS = 6;
+  let cloudAvailable = !!(tgSupports('6.9') && tg.CloudStorage && typeof tg.CloudStorage.setItem === 'function');
+  let cloudLoaded = false;
+  let cloudSynced = false;
+  let cloudError = false;
+  let cloudSavePending = false;
+  let cloudSaveTimer = null;
+  let lastCloudLoadAt = 0;
+
+  function cloudSetItemAsync(key, value) {
+    return new Promise((resolve) => {
+      try {
+        tg.CloudStorage.setItem(key, value, (err, ok) => resolve(!err && ok !== false));
+      } catch (e) {
+        resolve(false);
+      }
+    });
+  }
+
+  function cloudRemoveItemsAsync(keys) {
+    return new Promise((resolve) => {
+      if (!keys.length || typeof tg.CloudStorage.removeItems !== 'function') return resolve(true);
+      try {
+        tg.CloudStorage.removeItems(keys, () => resolve(true));
+      } catch (e) {
+        resolve(false);
+      }
+    });
+  }
+
+  function saveToCloudDebounced(immediate) {
+    if (!cloudAvailable) return;
+    if (!cloudLoaded) {
+      cloudSavePending = true;
+      return;
+    }
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer = setTimeout(async () => {
+      try {
+        const srsPack = JSON.stringify({ mastered: store.mastered, srs: store.srs });
+        const chunks = [];
+        for (let i = 0; i < srsPack.length; i += CLOUD_CHUNK_SIZE) {
+          chunks.push(srsPack.slice(i, i + CLOUD_CHUNK_SIZE));
+        }
+        const meta = JSON.stringify({
+          xp: store.xp, streak: store.streak, dayStreak: store.dayStreak,
+          lastDay: store.lastDay, daysDone: (store.daysDone || []).slice(-14),
+          bestBlitz: store.bestBlitz, mistakes: store.mistakes,
+          readTexts: store.readTexts,
+          sound: store.sound, dark: store.dark, scope: store.scope, topic: store.topic,
+          phonMode: store.phonMode, writeMode: store.writeMode,
+          updatedAt: store.updatedAt || Date.now(),
+          srsChunks: chunks.length
+        });
+        if (meta.length > 4096) {
+          cloudError = true;
+          updateTopStats();
+          return;
+        }
+        const tasks = [cloudSetItemAsync('zh_meta', meta)];
+        for (let i = 0; i < Math.min(chunks.length, CLOUD_SRS_MAX_CHUNKS); i++) {
+          tasks.push(cloudSetItemAsync('zh_srs_' + i, chunks[i]));
+        }
+        const results = await Promise.all(tasks);
+        const staleKeys = [];
+        for (let i = chunks.length; i < CLOUD_SRS_MAX_CHUNKS; i++) staleKeys.push('zh_srs_' + i);
+        if (staleKeys.length) await cloudRemoveItemsAsync(staleKeys);
+
+        const allOk = results.every(Boolean);
+        cloudSynced = allOk;
+        cloudError = !allOk;
+        updateTopStats();
+      } catch (e) {
+        cloudError = true;
+        updateTopStats();
+      }
+    }, immediate ? 50 : 650);
+  }
+
+  function loadFromCloud(force) {
+    if (!cloudAvailable) return;
+    const now = Date.now();
+    if (!force && now - lastCloudLoadAt < 8000) return;
+    lastCloudLoadAt = now;
+    try {
+      const keys = ['zh_meta', 'zh_srs'];
+      for (let i = 0; i < CLOUD_SRS_MAX_CHUNKS; i++) keys.push('zh_srs_' + i);
+      tg.CloudStorage.getItems(keys, (err, vals) => {
+        cloudLoaded = true;
+        if (err || !vals) {
+          cloudError = true;
+          updateTopStats();
+          return;
+        }
+        let changed = false;
+        let localAhead = false;
+        let cloudUpdatedAt = 0;
+        let expectedChunks = 0;
+        if (vals.zh_meta) {
+          try {
+            const m = JSON.parse(vals.zh_meta);
+            cloudUpdatedAt = typeof m.updatedAt === 'number' ? m.updatedAt : 0;
+            expectedChunks = typeof m.srsChunks === 'number' ? m.srsChunks : 0;
+            if ((m.xp || 0) > store.xp) { store.xp = m.xp; changed = true; }
+            else if (store.xp > (m.xp || 0)) localAhead = true;
+
+            if ((m.bestBlitz || 0) > store.bestBlitz) { store.bestBlitz = m.bestBlitz; changed = true; }
+            else if (store.bestBlitz > (m.bestBlitz || 0)) localAhead = true;
+
+            if ((m.lastDay || 0) > store.lastDay) {
+              store.lastDay = m.lastDay;
+              store.dayStreak = m.dayStreak || store.dayStreak;
+              changed = true;
+            } else if ((m.lastDay || 0) === store.lastDay && (m.dayStreak || 0) > store.dayStreak) {
+              store.dayStreak = m.dayStreak;
+              changed = true;
+            } else if (store.lastDay > (m.lastDay || 0) || store.dayStreak > (m.dayStreak || 0)) {
+              localAhead = true;
+            }
+
+            if (Array.isArray(m.readTexts)) {
+              const mergedRead = [...new Set([...(store.readTexts || []), ...m.readTexts])];
+              if (mergedRead.length !== (store.readTexts || []).length) { store.readTexts = mergedRead; changed = true; }
+              if (mergedRead.length > m.readTexts.length) localAhead = true;
+            }
+            if (Array.isArray(m.daysDone)) {
+              const mergedDays = [...new Set([...(store.daysDone || []), ...m.daysDone])].sort((a, b) => a - b).slice(-14);
+              if (mergedDays.length !== (store.daysDone || []).length) {
+                store.daysDone = mergedDays;
+                changed = true;
+              }
+              if (mergedDays.length > m.daysDone.length) localAhead = true;
+            }
+            if (cloudUpdatedAt > (store.updatedAt || 0)) {
+              if (m.mistakes && typeof m.mistakes === 'object') { store.mistakes = { ...m.mistakes }; changed = true; }
+              if (typeof m.scope === 'string') store.scope = m.scope;
+              if (typeof m.topic === 'string') store.topic = m.topic;
+              if (typeof m.sound === 'boolean') store.sound = m.sound;
+              if (typeof m.phonMode === 'string') store.phonMode = m.phonMode;
+              if (typeof m.writeMode === 'string') store.writeMode = m.writeMode;
+              if (typeof m.dark === 'boolean') {
+                store.dark = m.dark;
+                document.body.classList.toggle('dark', store.dark);
+              }
+              store.updatedAt = cloudUpdatedAt;
+              changed = true;
+            } else if (store.updatedAt > cloudUpdatedAt) {
+              localAhead = true;
+            }
+          } catch (e) {}
+        } else if (store.xp > 0 || store.mastered.length > 0 || Object.keys(store.srs).length > 0) {
+          localAhead = true;
+        }
+
+        let rawSrs = '';
+        if (expectedChunks > 0) {
+          for (let i = 0; i < expectedChunks; i++) rawSrs += (vals['zh_srs_' + i] || '');
+        } else if (vals.zh_srs_0) {
+          for (let i = 0; i < CLOUD_SRS_MAX_CHUNKS; i++) rawSrs += (vals['zh_srs_' + i] || '');
+        } else if (vals.zh_srs) {
+          rawSrs = vals.zh_srs;
+        }
+
+        if (rawSrs) {
+          try {
+            const sp = JSON.parse(rawSrs);
+            if (Array.isArray(sp.mastered)) {
+              const mergedM = [...new Set([...(store.mastered || []), ...sp.mastered])];
+              if (mergedM.length !== store.mastered.length) { store.mastered = mergedM; changed = true; }
+              if (mergedM.length > sp.mastered.length) localAhead = true;
+            }
+            if (sp.srs && typeof sp.srs === 'object') {
+              for (const k in sp.srs) {
+                const cur = store.srs[k], inc = sp.srs[k];
+                if (!cur || (inc.l || 0) > (cur.l || 0) || ((inc.l || 0) === (cur.l || 0) && (inc.n || 0) > (cur.n || 0))) {
+                  store.srs[k] = inc;
+                  changed = true;
+                }
+              }
+              for (const k in store.srs) {
+                const cur = store.srs[k], inc = sp.srs[k];
+                if (!inc || (cur.l || 0) > (inc.l || 0) || ((cur.l || 0) === (inc.l || 0) && (cur.n || 0) > (inc.n || 0))) {
+                  localAhead = true;
+                }
+              }
+            }
+          } catch (e) {}
+        }
+
+        cloudSynced = true;
+        cloudError = false;
+        if (changed) {
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch (e) {}
+        }
+        if (cloudSavePending || localAhead) {
+          cloudSavePending = false;
+          saveToCloudDebounced(true);
+        }
+        updateTopStats();
+        if (currentTab === 'dict') renderDict();
+      });
+    } catch (e) {
+      cloudLoaded = true;
+      cloudError = true;
+      updateTopStats();
+    }
+  }
+
+  window.manualCloudSync = function () {
+    if (!cloudAvailable) return;
+    playSfx('tap');
+    cloudSynced = false;
+    cloudError = false;
     updateTopStats();
+    loadFromCloud(true);
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') loadFromCloud(false);
+  });
+
+  function saveStore() {
+    store.updatedAt = Date.now();
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch (e) {}
+    saveToCloudDebounced(false);
+    updateTopStats();
+  }
+
+  function updateSrs(hz, quality) {
+    // quality: 0 = forgot, 1 = hard, 2 = easy
+    const cur = store.srs[hz] || { l: 0, n: todayNum() };
+    let nextL = cur.l || 0;
+    if (quality === 0) nextL = 0;
+    else if (quality === 1) nextL = Math.min(SRS_INTERVALS.length - 1, Math.max(1, nextL));
+    else nextL = Math.min(SRS_INTERVALS.length - 1, nextL + 1);
+    const days = SRS_INTERVALS[nextL];
+    store.srs[hz] = { l: nextL, n: todayNum() + days };
+    if (nextL >= 1 && !store.mastered.includes(hz)) store.mastered.push(hz);
+    if (nextL === 0) store.mastered = store.mastered.filter(x => x !== hz);
+    saveStore();
+  }
+
+  function isSrsDue(hz) {
+    const rec = store.srs[hz];
+    if (!rec) return true;
+    return rec.n <= todayNum();
+  }
+
+  function markDayCompleted() {
+    const td = todayNum();
+    if (store.lastDay === td) return;
+    if (store.lastDay === td - 1) store.dayStreak = (store.dayStreak || 0) + 1;
+    else store.dayStreak = 1;
+    store.lastDay = td;
+    if (!store.daysDone.includes(td)) store.daysDone.push(td);
+    store.daysDone = store.daysDone.slice(-14);
+    saveStore();
   }
 
   let audioCtx = null;
@@ -1190,7 +2323,22 @@
     tryNext();
   }
 
-  function awardXP(pts, correct) {
+  function logMistake(hz) {
+    if (!hz) return;
+    if (!store.mistakes || typeof store.mistakes !== 'object') store.mistakes = {};
+    // Ищем точное слово из VOCAB или первый иероглиф
+    const v = VOCAB.find(x => x[0] === hz) || VOCAB.find(x => x[0].includes(hz));
+    const key = v ? v[0] : hz;
+    store.mistakes[key] = 2; // нужно 2 верных ответа подряд, чтобы закрыть ошибку
+    saveStore();
+  }
+  function resolveMistakeStep(hz) {
+    if (!store.mistakes || !store.mistakes[hz]) return;
+    store.mistakes[hz] -= 1;
+    if (store.mistakes[hz] <= 0) delete store.mistakes[hz];
+    saveStore();
+  }
+  function awardXP(pts, correct, mistakeKey) {
     if (correct) {
       store.xp += pts;
       store.streak += 1;
@@ -1200,6 +2348,7 @@
       store.streak = 0;
       playSfx('bad');
       haptic('bad');
+      if (mistakeKey) logMistake(mistakeKey);
     }
     saveStore();
   }
@@ -1283,8 +2432,8 @@
     ["写", "xiě", "писать", true],
     ["打字", "dǎ zì", "печатать (набирать текст)", true],
     ["坐", "zuò", "сидеть; ехать на транспорте", true],
-    ["开", "kāi", "водить машину; открывать", true],
-    ["行", "xíng", "идти; сходить с транспорта", true],
+    ["开", "kāi", "открывать; включать; водить (машину)", true],
+    ["行", "xíng", "хорошо, годится; идти", true],
     ["入口", "rù kǒu", "вход", true],
     ["出口", "chū kǒu", "выход", true],
     ["朋友", "péng you", "друг", true],
@@ -1293,7 +2442,7 @@
     ["走路", "zǒu lù", "гулять, идти пешком", true],
     ["路", "lù", "путь, дорога", true],
     ["跳舞", "tiào wǔ", "танцевать", true],
-    ["兆", "zhào", "миллион (с доски)", true]
+    ["兆", "zhào", "миллион (мега-); триллион (трад.)", true]
   ];
 
   const OLD_VOCAB = [
@@ -1360,13 +2509,13 @@
     ["我 和 我 的 朋友 在 一起。", "wǒ hé wǒ de péng you zài yī qǐ", "Я вместе со своим другом.", "", true],
     ["他 是 我 的 好 朋友。", "tā shì wǒ de hǎo péng you", "Он мой хороший друг.", "", true],
     ["你 的 朋友 叫 什么 名字？", "nǐ de péng you jiào shén me míng zi", "Как зовут твоего друга?", "", true],
-    ["我 的 朋友 住 在 俄罗斯。", "wǒ de péng you zhù zài é luó sī", "Мой друг живёт в России.", "", true],
+    ["我 朋友 住 在 俄罗斯。", "wǒ péng you zhù zài é luó sī", "Мой друг живёт в России.", "", true],
     ["我 想 见 我 的 朋友。", "wǒ xiǎng jiàn wǒ de péng you", "Я хочу увидеться со своим другом.", "", true],
     ["明天 见！", "míng tiān jiàn", "Увидимся завтра!", "", true],
     ["下午 见！", "xià wǔ jiàn", "Увидимся днём!", "", true],
     ["我 喜欢 跳舞。", "wǒ xǐ huan tiào wǔ", "Мне нравится танцевать.", "", true],
     ["她 很 会 跳舞。", "tā hěn huì tiào wǔ", "Она очень хорошо умеет танцевать.", "", true],
-    ["我们 一起 跳舞 吗？", "wǒ men yī qǐ tiào wǔ ma", "Потанцуем вместе?", "", true],
+    ["你 想 一起 跳舞 吗？", "nǐ xiǎng yī qǐ tiào wǔ ma", "Хочешь потанцевать вместе?", "", true],
     ["我 喜欢 走路。", "wǒ xǐ huan zǒu lù", "Мне нравится гулять пешком.", "", true],
     ["我们 一起 出去 走路。", "wǒ men yī qǐ chū qù zǒu lù", "Мы вместе выходим погулять.", "", true],
     ["我 在 听 老师 说。", "wǒ zài tīng lǎo shī shuō", "Я слушаю, как говорит учитель.", "", true],
@@ -1389,7 +2538,7 @@
     ["您 叫 什么 名字？", "nín jiào shén me míng zi", "Как Вас зовут?"],
     ["我 叫 波莉纳。", "wǒ jiào bō lì nà", "Меня зовут Полина."],
     ["我 叫 葛利高里。", "wǒ jiào gé lì gāo lǐ", "Меня зовут Григорий."],
-    ["你 多少 岁？", "nǐ duō shǎo suì", "Сколько тебе лет?"],
+    ["你 多大？", "nǐ duō dà", "Сколько тебе лет?"],
     ["我 二十三 岁。", "wǒ èr shí sān suì", "Мне 23 года."],
     ["我 二十七 岁。", "wǒ èr shí qī suì", "Мне 27 лет."],
     ["你 是 哪 国 人？", "nǐ shì nǎ guó rén", "Из какой ты страны?"],
@@ -1409,7 +2558,7 @@
     ["二零二六 年 十 月 一 日。", "èr líng èr liù nián shí yuè yī rì", "1 октября 2026 года."],
     ["请问，现在 几 点？", "qǐng wèn xiàn zài jǐ diǎn", "Скажите, пожалуйста, который час?"],
     ["现在 两 点 二十三 分。", "xiàn zài liǎng diǎn èr shí sān fēn", "Сейчас 2:23."],
-    ["现在 是 上午 十 点 一 刻。", "xiàn zài shì shàng wǔ shí diǎn yī kè", "Сейчас 10:15 утра."],
+    ["现在 上午 十 点 一 刻。", "xiàn zài shàng wǔ shí diǎn yī kè", "Сейчас 10:15 утра."],
     ["差 一 刻 三 点。", "chà yī kè sān diǎn", "Без четверти три."],
     ["现在 三 点 半。", "xiàn zài sān diǎn bàn", "Сейчас половина четвёртого."],
     ["现在 凌晨 四 点。", "xiàn zài líng chén sì diǎn", "Сейчас 4 часа утра."],
@@ -1436,10 +2585,10 @@
     ["他 的 女儿 很 美。", "tā de nǚ ér hěn měi", "Его дочь красивая."],
     ["他 的 儿子 不 矮。", "tā de ér zi bù ǎi", "Его сын не низкий."],
     ["她 的 丈夫 是 老师。", "tā de zhàng fu shì lǎo shī", "Её муж — учитель."],
-    ["我 的 爸爸 是 老师。", "wǒ de bà ba shì lǎo shī", "Мой папа — учитель."],
-    ["我 的 妈妈 是 数学 老师。", "wǒ de mā ma shì shù xué lǎo shī", "Моя мама — учитель математики."],
-    ["我 的 哥哥 很 高。", "wǒ de gē ge hěn gāo", "Мой старший брат высокий."],
-    ["我 的 弟弟 很 帅。", "wǒ de dì di hěn shuài", "Мой младший брат красивый."],
+    ["我 爸爸 是 老师。", "wǒ bà ba shì lǎo shī", "Мой папа — учитель."],
+    ["我 妈妈 是 数学 老师。", "wǒ mā ma shì shù xué lǎo shī", "Моя мама — учитель математики."],
+    ["我 哥哥 很 高。", "wǒ gē ge hěn gāo", "Мой старший брат высокий."],
+    ["我 弟弟 很 帅。", "wǒ dì di hěn shuài", "Мой младший брат красивый."],
     ["他 是 我 的 外公。", "tā shì wǒ de wài gōng", "Он мой дедушка (по маме)."],
     ["你 的 老师 是 谁？", "nǐ de lǎo shī shì shéi", "Кто твой учитель?"],
     ["他们 家 有 猫 和 狗。", "tā men jiā yǒu māo hé gǒu", "У них дома есть кошка и собака.", "x"],
@@ -1512,11 +2661,36 @@
   VOCAB.forEach(([h, p]) => { const ps = p.split(' '); [...h].forEach((c, j) => ps[j] && addReading(c, ps[j])); });
   const ALL_CHARS = Object.keys(CHAR_PY);
 
+  const TOPICS = [
+    { id: 'all', label: '🌐 Все темы' },
+    { id: 'actions', label: '🏃 Действия и учёба' },
+    { id: 'time', label: '🕒 Время и даты' },
+    { id: 'family', label: '👨‍👩‍👧 Семья и друзья' },
+    { id: 'weather', label: '🌤️ Погода' },
+    { id: 'intro', label: '👋 Знакомство' },
+    { id: 'desc', label: '✨ Описания' }
+  ];
+  const WORD_TOPIC = {"想": "actions", "回": "actions", "回来": "actions", "听": "actions", "学习": "actions", "休息": "actions", "会": "actions", "见": "actions", "观察": "actions", "写": "actions", "打字": "actions", "坐": "actions", "开": "actions", "行": "actions", "入口": "actions", "出口": "actions", "走路": "actions", "路": "actions", "跳舞": "actions", "叫": "actions", "汉字": "actions", "老师": "actions", "学生": "actions", "数学": "actions", "数学家": "actions", "有": "actions", "没有": "actions", "住": "actions", "喜欢": "actions", "爱": "actions", "要": "actions", "说": "actions", "来": "actions", "去": "actions", "出去": "actions", "走": "actions", "工作": "actions", "活着": "actions", "喵喵叫": "actions", "走走": "actions", "兆": "time", "多少": "time", "岁": "time", "年": "time", "月": "time", "号": "time", "生日": "time", "几": "time", "今天": "time", "昨天": "time", "前天": "time", "明天": "time", "后天": "time", "早上": "time", "上午": "time", "中午": "time", "下午": "time", "傍晚": "time", "晚上": "time", "深夜": "time", "凌晨": "time", "午夜": "time", "现在": "time", "星期": "time", "星期天": "time", "点": "time", "分": "time", "刻": "time", "半": "time", "差": "time", "两": "time", "第一": "time", "每": "time", "次": "time", "朋友": "family", "在一起": "family", "一起": "family", "人": "family", "大家": "family", "家": "family", "谁": "family", "他们": "family", "猫": "family", "狗": "family", "父母": "family", "爸爸": "family", "妈妈": "family", "父亲": "family", "母亲": "family", "哥哥": "family", "弟弟": "family", "姐姐": "family", "妹妹": "family", "丈夫": "family", "妻子": "family", "孩子": "family", "儿子": "family", "女儿": "family", "爷爷": "family", "奶奶": "family", "外公": "family", "外婆": "family", "我们": "family", "你们": "family", "一个人": "family", "谁的": "family", "水": "weather", "城市": "weather", "天气": "weather", "热": "weather", "温暖": "weather", "冷": "weather", "凉爽": "weather", "多云": "weather", "晴天": "weather", "阴天": "weather", "雪": "weather", "雨": "weather", "风": "weather", "雾": "weather", "茶": "weather", "一点点": "intro", "什么": "intro", "名字": "intro", "哪": "intro", "国": "intro", "俄罗斯": "intro", "俄语": "intro", "英语": "intro", "汉语": "intro", "再见": "intro", "您好": "intro", "晚安": "intro", "好梦": "intro", "可以": "intro", "也": "intro", "请问": "intro", "这": "intro", "和": "intro", "对": "intro", "或者": "intro", "中国": "intro", "英国": "intro", "对不对": "intro", "大": "desc", "小": "desc", "很": "desc", "高": "desc", "矮": "desc", "坏": "desc", "帅": "desc", "漂亮": "desc", "年轻": "desc", "老": "desc", "高兴": "desc", "快乐": "desc", "非常": "desc", "可笑": "desc", "美": "desc"};
+  function getWordTopic(hz) { return WORD_TOPIC[hz] || 'intro'; }
+  function sentenceMatchesTopic(s, topicId) {
+    if (!topicId || topicId === 'all') return true;
+    return s.toks.some(t => !t.punct && (WORD_TOPIC[t.h] === topicId || t.chars.some(c => WORD_TOPIC[c] === topicId)));
+  }
+
   function getScopedVocab() {
-    return store.scope === 'new' ? NEW_VOCAB : VOCAB;
+    const base = store.scope === 'new' ? NEW_VOCAB : VOCAB;
+    if (!store.topic || store.topic === 'all') return base;
+    const filtered = base.filter(v => getWordTopic(v[0]) === store.topic);
+    if (filtered.length) return filtered;
+    return VOCAB.filter(v => getWordTopic(v[0]) === store.topic);
   }
   function getScopedSentences() {
-    return store.scope === 'new' ? PARSED.filter(s => s.isNew) : PARSED;
+    const base = store.scope === 'new' ? PARSED.filter(s => s.isNew) : PARSED;
+    if (!store.topic || store.topic === 'all') return base;
+    const filtered = base.filter(s => sentenceMatchesTopic(s, store.topic));
+    if (filtered.length) return filtered;
+    const fallback = PARSED.filter(s => sentenceMatchesTopic(s, store.topic));
+    return fallback.length ? fallback : base;
   }
 
   /* =====================================================================
@@ -1593,6 +2767,25 @@
     return list[i];
   }
 
+  const ANTI_OWL_JOKES = [
+    '🦉 Сова в отпуске. Чиллим.',
+    '🧊 «Заморозка серии» за кристаллы не нужна.',
+    '👀 Иконка приложения не станет злой, иероглиф так не умеет.',
+    '🍵 Можно пройти 10 заданий, а можно закрыть и пойти пить чай.',
+    '🚪 Ты забыл китайский! Ой, не это хотел сказать.',
+    '📉 Пропустил три дня? Красава.',
+    '🏆 Лиги, сундуки и вылет в бронзу отменены.',
+    '🛋️ Осталось 5 минут до полуночи — ошалеть.'
+  ];
+  let owlJokeIdx = Math.floor(Math.random() * ANTI_OWL_JOKES.length);
+  window.cycleOwlJoke = function () {
+    owlJokeIdx = (owlJokeIdx + 1) % ANTI_OWL_JOKES.length;
+    const owlEl = document.getElementById('anti-owl-text');
+    if (owlEl) owlEl.textContent = ANTI_OWL_JOKES[owlJokeIdx];
+    playSfx('tap');
+    haptic('tap');
+  };
+
   function updateTopStats() {
     document.getElementById('streak-pill').textContent = '🔥 ' + store.streak;
     document.getElementById('xp-pill').textContent = '⭐ ' + store.xp;
@@ -1600,11 +2793,60 @@
     document.getElementById('theme-btn').textContent = store.dark ? '☀️' : '🌙';
     document.getElementById('scope-new').classList.toggle('active', store.scope === 'new');
     document.getElementById('scope-all').classList.toggle('active', store.scope === 'all');
+    renderScopeTopics();
+    const readBadge = document.getElementById('menu-read-badge');
+    if (readBadge && typeof READING_TEXTS !== 'undefined') {
+      readBadge.textContent = `${(store.readTexts || []).length} / ${READING_TEXTS.length}`;
+    }
 
     const newSet = new Set(NEW_VOCAB.map(v => v[0]));
     const masteredNew = store.mastered.filter(h => newSet.has(h)).length;
     document.getElementById('mastery-text').textContent = `${masteredNew} / ${NEW_VOCAB.length}`;
     document.getElementById('mastery-bar').style.width = `${Math.round((masteredNew / NEW_VOCAB.length) * 100)}%`;
+    const mCount = store.mistakes ? Object.keys(store.mistakes).length : 0;
+    const mBadge = document.getElementById('menu-mistakes-badge');
+    if (mBadge) {
+      mBadge.style.display = mCount > 0 ? 'inline-block' : 'none';
+      mBadge.textContent = String(mCount);
+    }
+    const scopedV = getScopedVocab();
+    const dueCount = scopedV.filter(v => isSrsDue(v[0])).length;
+    const dueEl = document.getElementById('srs-due-text');
+    if (dueEl) dueEl.textContent = dueCount + ' слов';
+    const flashBadge = document.getElementById('flash-due-badge');
+    if (flashBadge) flashBadge.textContent = dueCount > 0 ? `${dueCount} к повт.` : 'Готово';
+
+    const td = todayNum();
+    const doneToday = store.daysDone.includes(td);
+    const subHero = document.getElementById('daily-hero-sub');
+    if (subHero) subHero.textContent = doneToday
+      ? 'Сегодня уже позанимался — зелёная птица может лететь обратно в лес'
+      : '10 заданий вперемешку: SRS, тоны, слух и прописи';
+
+    const owlEl = document.getElementById('anti-owl-text');
+    if (owlEl && typeof ANTI_OWL_JOKES !== 'undefined') {
+      owlEl.textContent = ANTI_OWL_JOKES[owlJokeIdx % ANTI_OWL_JOKES.length];
+    }
+
+    const cloudTxt = document.getElementById('cloud-status-text');
+    const cloudDet = document.getElementById('cloud-sync-detail');
+    const cloudBtn = document.getElementById('cloud-sync-btn');
+    if (cloudTxt) {
+      if (cloudAvailable) {
+        if (cloudError) {
+          cloudTxt.textContent = '⚠️ Ошибка синхронизации с облаком';
+          cloudDet.textContent = 'Нажми «Синхр.» для повтора';
+        } else {
+          cloudTxt.textContent = cloudSynced ? '☁️ Telegram Cloud синхронизирован' : '☁️ Подключение к Telegram Cloud...';
+          cloudDet.textContent = 'Авто (ПК + телефон)';
+        }
+        if (cloudBtn) cloudBtn.style.display = 'inline-block';
+      } else {
+        cloudTxt.textContent = '💾 Локальное сохранение';
+        cloudDet.textContent = 'Открой в Telegram (6.9+) для синхронизации ПК и телефона';
+        if (cloudBtn) cloudBtn.style.display = 'none';
+      }
+    }
   }
 
   window.setScope = function (sc) {
@@ -1612,15 +2854,33 @@
     saveStore();
     playSfx('tap');
   };
+  window.setTopic = function (tid) {
+    store.topic = tid;
+    saveStore();
+    playSfx('tap');
+  };
+  function renderScopeTopics() {
+    const box = document.getElementById('scope-topics');
+    if (!box) return;
+    box.innerHTML = '';
+    TOPICS.forEach(t => {
+      const b = document.createElement('button');
+      b.className = 'topic-chip' + (store.topic === t.id ? ' active' : '');
+      b.textContent = t.label;
+      b.onclick = () => setTopic(t.id);
+      box.appendChild(b);
+    });
+  }
 
   function showScreen(name) {
-    ['menu', 'flashcards', 'tones', 'blitz', 'slots', 'pairs', 'phonetics'].forEach(n => {
+    ['menu', 'daily', 'flashcards', 'tones', 'blitz', 'slots', 'pairs', 'phonetics', 'writing', 'mistakes', 'reading'].forEach(n => {
       document.getElementById('screen-' + n).style.display = n === name ? 'block' : 'none';
     });
     const inGame = name !== 'menu';
     document.getElementById('menu-back-btn').style.display = inGame ? 'inline-block' : 'none';
     document.getElementById('brand-logo').style.display = inGame ? 'none' : 'flex';
-    if (tg && tg.BackButton) {
+    document.getElementById('bottom-nav').style.display = inGame ? 'none' : 'flex';
+    if (tgSupports('6.1') && tg.BackButton) {
       try {
         if (inGame) tg.BackButton.show();
         else tg.BackButton.hide();
@@ -1628,7 +2888,7 @@
     }
   }
 
-  if (tg && tg.BackButton) {
+  if (tgSupports('6.1') && tg.BackButton) {
     try { tg.BackButton.onClick(() => goMenu()); } catch (e) {}
   }
 
@@ -1645,12 +2905,12 @@
      ===================================================================== */
   function startFlashcards() {
     const list = getScopedVocab();
-    // Приоритет невыученным словам
-    const unmastered = shuffle(list.filter(v => !store.mastered.includes(v[0])));
-    const mastered = shuffle(list.filter(v => store.mastered.includes(v[0])));
+    // Приоритет словам, которые пора повторить по SRS сегодня
+    const due = shuffle(list.filter(v => isSrsDue(v[0])));
+    const later = shuffle(list.filter(v => !isSrsDue(v[0])));
     state = {
       mode: 'flashcards',
-      deck: [...unmastered, ...mastered],
+      deck: [...due, ...later],
       idx: 0,
       flipped: false,
       knownCount: 0
@@ -1672,7 +2932,17 @@
     document.getElementById('flash-py').textContent = py;
     document.getElementById('flash-ru').textContent = ru;
     document.getElementById('flash-counter').textContent = `${state.idx + 1} / ${state.deck.length}`;
-    document.getElementById('flash-badge').textContent = isMastered ? '✅ Изучено' : (isNew ? '✨ Новое' : 'Повтор');
+    const rec = store.srs[hz];
+    const lvl = rec ? (rec.l || 0) : 0;
+    document.getElementById('flash-badge').textContent = rec
+      ? (isSrsDue(hz) ? `⏰ Повтор (ур. ${lvl})` : `✅ Ур. ${lvl} · через ${Math.max(1, rec.n - todayNum())} дн.`)
+      : (isNew ? '✨ Новое' : 'SRS ур. 0');
+    const midDays = SRS_INTERVALS[Math.min(SRS_INTERVALS.length - 1, Math.max(1, lvl))];
+    const goodDays = SRS_INTERVALS[Math.min(SRS_INTERVALS.length - 1, lvl + 1)];
+    const lm = document.getElementById('srs-lbl-mid');
+    const lg = document.getElementById('srs-lbl-good');
+    if (lm) lm.textContent = `+${midDays} дн.`;
+    if (lg) lg.textContent = `+${goodDays} дн.`;
     document.getElementById('flash-sub').textContent = state.flipped ? 'Оцени, насколько хорошо ты помнишь слово' : 'Нажми на карточку, чтобы перевернуть';
 
     // Подбираем пример предложения, содержащего это слово
@@ -1699,21 +2969,20 @@
     const item = state.deck[state.idx];
     if (item) speakZh(item[0], rate);
   };
-  window.rateFlash = function (known) {
+  window.rateFlash = function (quality) {
     const item = state.deck[state.idx];
     if (!item) return;
     const hz = item[0];
-    if (known) {
-      if (!store.mastered.includes(hz)) store.mastered.push(hz);
+    updateSrs(hz, quality);
+    if (quality >= 1) {
       state.knownCount += 1;
-      awardXP(5, true);
+      awardXP(quality === 2 ? 8 : 5, true);
     } else {
-      store.mastered = store.mastered.filter(x => x !== hz);
-      // Повторно подмешиваем слово через 3 карточки
-      const insertAt = Math.min(state.idx + 4, state.deck.length);
+      logMistake(hz);
+      const insertAt = Math.min(state.idx + 3, state.deck.length);
       state.deck.splice(insertAt, 0, item);
-      playSfx('tap');
-      saveStore();
+      playSfx('bad');
+      haptic('bad');
     }
     state.idx = (state.idx + 1) % state.deck.length;
     state.flipped = false;
@@ -1783,7 +3052,7 @@
     } else {
       cur.ok = false;
       t.hadError = true;
-      awardXP(0, false);
+      awardXP(0, false, t.hz);
     }
     renderTones();
   };
@@ -1886,7 +3155,7 @@
       const allBtns = document.querySelectorAll('.blitz-opt');
       state.q.opts.forEach((op, i) => { if (op.correct && allBtns[i]) allBtns[i].classList.add('ok'); });
       state.combo = 1;
-      awardXP(0, false);
+      awardXP(0, false, state.q.item[0]);
       fb.className = 'feedback bad';
       fb.textContent = `❌ Верно: ${state.q.item[0]} (${state.q.item[1]}) — ${state.q.item[2]}`;
     }
@@ -1981,6 +3250,21 @@
       cards: makeCards(words.map(w => w.h), words.map(w => w.py.join(' '))),
       prompt: { big: s.ru, small: 'Расставь слова по порядку' },
       ru: s.ru, reveal: { h: s.fullH, p: s.fullP, ru: '' }
+    };
+  }
+
+  function buildDictation() {
+    const s = pickNoRepeat(getScopedSentences(), 'dictation');
+    let i = 0;
+    const groups = s.toks.map(t => t.punct ? { punct: t.punct } : { slots: t.chars.map(() => ({ i: i++, label: '' })) });
+    const answerChars = s.toks.filter(t => !t.punct).flatMap(t => t.chars);
+    const extra = hzDistractors(answerChars, answerChars.length > 6 ? 3 : 2);
+    return {
+      labelStyle: 'none', tileStyle: 'hz', hintType: 'ru', isDictation: true,
+      groups, answer: answerChars.map(c => [c]),
+      cards: makeCards([...answerChars, ...extra]),
+      prompt: { big: '🎧 Слушай и собирай', small: 'Нажми «🔊 Озвучить» ниже (подсказка покажет перевод)' },
+      ru: s.ru, reveal: { h: s.fullH, p: s.fullP, ru: s.ru }
     };
   }
 
@@ -2134,7 +3418,11 @@
     pairs: { kind: 'pairs', title: '8. Найди пару', build: buildPairs },
     syllables: { kind: 'phon', title: '9. Сложные слоги' },
     combos: { kind: 'phon', title: '10. Коварные сочетания' },
-    twins: { kind: 'phon', title: '11. Фонетические близнецы' }
+    twins: { kind: 'phon', title: '11. Фонетические близнецы' },
+    writing: { kind: 'writing' },
+    dictation: { kind: 'slots', title: '13. Аудио-диктант', sub: 'Прослушай фразу и собери её из иероглифов (без пиньиня!)', build: buildDictation },
+    mistakes: { kind: 'mistakes' },
+    reading: { kind: 'reading' }
   };
 
   window.startGame = function (mode) {
@@ -2143,6 +3431,8 @@
     playSfx('tap');
     if (mode === 'flashcards') return startFlashcards();
     if (mode === 'blitz') return startBlitz();
+    if (mode === 'daily') return startDailyWorkout();
+    if (mode === 'reading') return startReading();
     state = { mode, score: 0 };
     window.nextRound();
   };
@@ -2160,6 +3450,7 @@
       const task = def.build();
       state = { mode: state.mode, task, slots: task.answer.map(() => null), hint: false, solved: false, score };
       renderSlots(def);
+      if (task.isDictation) setTimeout(() => speakZh(task.reveal.h, 0.85), 200);
       return;
     }
     if (def.kind === 'pairs') {
@@ -2178,6 +3469,14 @@
       state = { mode: state.mode, cards, targetIdx, answered: false, pickedIdx: -1, score };
       renderPhon(def);
       if (store.phonMode === 'quiz') setTimeout(() => speakPhonTarget(0.92), 180);
+      return;
+    }
+    if (def.kind === 'writing') {
+      startWriteRound(score);
+      return;
+    }
+    if (def.kind === 'mistakes') {
+      startMistakesRound(score);
     }
   };
 
@@ -2318,7 +3617,8 @@
       const L = side === 'L' ? id : other, R = side === 'R' ? id : other;
       t.wrong = [L, R];
       t.sel = null;
-      awardXP(0, false);
+      const badIt = t.items.find(x => x.id === L);
+      awardXP(0, false, badIt ? badIt.h : null);
       renderPairs();
       clearTimeout(wrongTimer);
       wrongTimer = setTimeout(() => {
@@ -2525,9 +3825,773 @@
     }
   }
 
+
+  /* =====================================================================
+     РЕЖИМ 12: ПРОПИСИ (HANZI WRITER — ПОРЯДОК И НАПРАВЛЕНИЕ ЧЕРТ)
+     ===================================================================== */
+  const NEW_SINGLE_CHARS = [
+    ["想", "xiǎng", "хотеть, думать"], ["回", "huí", "возвращаться"], ["听", "tīng", "слушать"],
+    ["习", "xí", "учить (в 学习)"], ["休", "xiū", "отдых (в 休息)"], ["息", "xī", "покой (в 休息)"],
+    ["会", "huì", "мочь, уметь"], ["观", "guān", "смотреть (в 观察)"], ["察", "chá", "наблюдать (в 观察)"],
+    ["写", "xiě", "писать"], ["打", "dǎ", "печатать (в 打字)"], ["坐", "zuò", "сидеть; ехать"],
+    ["开", "kāi", "открывать; водить"], ["行", "xíng", "годится; идти"], ["入", "rù", "входить (в 入口)"],
+    ["口", "kǒu", "рот, вход/выход"], ["朋", "péng", "друг (в 朋友)"], ["友", "yǒu", "друг (в 朋友)"],
+    ["起", "qǐ", "вставать (в 一起)"], ["路", "lù", "путь, дорога"], ["跳", "tiào", "прыгать (в 跳舞)"],
+    ["舞", "wǔ", "танец (в 跳舞)"], ["兆", "zhào", "миллион (мега-)"]
+  ];
+  const ALL_WRITE_CHARS = (() => {
+    const map = new Map();
+    NEW_SINGLE_CHARS.forEach(([c, p, r]) => map.set(c, { c, p, r, isNew: true }));
+    VOCAB.forEach(([h, p, r]) => {
+      const chars = [...h];
+      const pys = p.split(' ');
+      if (chars.length === 1 && !map.has(chars[0])) {
+        map.set(chars[0], { c: chars[0], p: pys[0] || p, r, isNew: false });
+      }
+    });
+    ALL_CHARS.forEach(c => {
+      if (!map.has(c)) {
+        const py = [...(CHAR_PY[c] || [''])][0];
+        const parent = VOCAB.find(v => v[0].includes(c));
+        map.set(c, { c, p: py, r: parent ? `из слова ${parent[0]} (${parent[2]})` : 'изученный иероглиф', isNew: false });
+      }
+    });
+    return [...map.values()];
+  })();
+
+  let hanziWriter = null;
+  function getWritePool() {
+    return store.scope === 'new' ? ALL_WRITE_CHARS.filter(x => x.isNew) : ALL_WRITE_CHARS;
+  }
+
+  function startWriteRound(score) {
+    const item = pickNoRepeat(getWritePool(), 'writing');
+    state = { mode: 'writing', item, mistakes: 0, solved: false, score };
+    showScreen('writing');
+    renderWriteUI();
+    initHanziWriter();
+  }
+
+  function renderWriteUI() {
+    document.getElementById('write-mode-trace').classList.toggle('active', store.writeMode === 'trace');
+    document.getElementById('write-mode-blind').classList.toggle('active', store.writeMode === 'blind');
+    document.getElementById('write-py').textContent = state.item.p;
+    document.getElementById('write-ru').textContent = state.item.r;
+    document.getElementById('write-score').textContent = state.score ? `Написано за сессию: ${state.score}` : '';
+    document.getElementById('write-status').textContent =
+      store.writeMode === 'trace' ? 'Обведи иероглиф — порядок и направление черт проверяются' : 'Вспомни и напиши иероглиф по памяти (после 2 ошибок будет подсказка)';
+    const fb = document.getElementById('write-feedback');
+    fb.className = 'feedback';
+    fb.textContent = '';
+  }
+
+  function initHanziWriter() {
+    const target = document.getElementById('hanzi-target');
+    target.innerHTML = '';
+    hanziWriter = null;
+    if (typeof HanziWriter === 'undefined') {
+      document.getElementById('write-status').textContent = 'Не удалось загрузить библиотеку прописей (нужен интернет)';
+      return;
+    }
+    try {
+      hanziWriter = HanziWriter.create(target, state.item.c, {
+        width: 256,
+        height: 256,
+        padding: 16,
+        showCharacter: false,
+        showOutline: store.writeMode === 'trace',
+        outlineColor: '#cbd5e1',
+        strokeColor: '#0f172a',
+        highlightColor: '#e11d48',
+        drawingColor: '#2563eb',
+        drawingWidth: 18,
+        showHintAfterMisses: 2,
+        highlightOnComplete: true,
+        strokeAnimationSpeed: 1.1,
+        delayBetweenStrokes: 260
+      });
+      startQuizOnWriter();
+    } catch (e) {
+      document.getElementById('write-status').textContent = 'Не удалось загрузить контур иероглифа';
+    }
+  }
+
+  function startQuizOnWriter() {
+    if (!hanziWriter) return;
+    state.mistakes = 0;
+    state.solved = false;
+    hanziWriter.quiz({
+      onCorrectStroke: () => {
+        playSfx('tap');
+        haptic('tap');
+      },
+      onMistake: () => {
+        state.mistakes += 1;
+        playSfx('bad');
+        haptic('bad');
+        if (state.mistakes === 2) logMistake(state.item.c);
+        document.getElementById('write-status').textContent = 'Попробуй провести черту в правильном порядке/направлении (после 2 ошибок покажу подсказку)';
+      },
+      onComplete: (summary) => {
+        state.solved = true;
+        state.score += 1;
+        const pts = summary.totalMistakes === 0 ? 15 : 10;
+        awardXP(pts, true);
+        speakZh(state.item.c, 0.9);
+        const fb = document.getElementById('write-feedback');
+        fb.className = 'feedback good';
+        fb.textContent = summary.totalMistakes === 0
+          ? `✅ Безупречно! Иероглиф ${state.item.c} написан без единой ошибки (+${pts} XP)`
+          : `✅ Готово! Иероглиф ${state.item.c} завершён (ошибок: ${summary.totalMistakes})`;
+        document.getElementById('write-score').textContent = `Написано за сессию: ${state.score}`;
+      }
+    });
+  }
+
+  window.setWriteMode = function (wm) {
+    store.writeMode = wm;
+    saveStore();
+    playSfx('tap');
+    renderWriteUI();
+    initHanziWriter();
+  };
+  window.animateWriteChar = function () {
+    if (!hanziWriter) return;
+    playSfx('tap');
+    hanziWriter.animateCharacter({
+      onComplete: () => {
+        if (!state.solved) startQuizOnWriter();
+      }
+    });
+  };
+  window.restartWriteQuiz = function () {
+    playSfx('tap');
+    renderWriteUI();
+    initHanziWriter();
+  };
+  window.speakWriteChar = function (rate) {
+    if (state.item) speakZh(state.item.c, rate);
+  };
+
+  /* =====================================================================
+     РЕЖИМ 14: РАБОТА НАД ОШИБКАМИ
+     ===================================================================== */
+  function startMistakesRound(score) {
+    showScreen('mistakes');
+    const keys = store.mistakes ? Object.keys(store.mistakes) : [];
+    const items = keys.map(k => VOCAB.find(v => v[0] === k)).filter(Boolean);
+    if (!items.length) {
+      document.getElementById('mistakes-empty').style.display = 'block';
+      document.getElementById('mistakes-active').style.display = 'none';
+      state = { mode: 'mistakes', item: null, score };
+      return;
+    }
+    document.getElementById('mistakes-empty').style.display = 'none';
+    document.getElementById('mistakes-active').style.display = 'block';
+    const item = pickNoRepeat(items, 'mistakes');
+    const kind = pick(['hz2ru', 'ru2hz', 'hz2py']);
+    const distractors = shuffle(VOCAB.filter(v => v[0] !== item[0] && v[2] !== item[2] && v[1] !== item[1])).slice(0, 3);
+    const opts = shuffle([item, ...distractors]).map(v => ({
+      correct: v[0] === item[0],
+      label: kind === 'hz2ru' ? v[2] : (kind === 'ru2hz' ? v[0] : v[1]),
+      isHz: kind === 'ru2hz'
+    }));
+    state = { mode: 'mistakes', item, kind, opts, answered: false, score };
+    renderMistakeQ();
+  }
+
+  function renderMistakeQ() {
+    const { item, kind, opts } = state;
+    const leftCount = store.mistakes[item[0]] || 1;
+    document.getElementById('mistakes-sub').textContent = `Слов на отработке: ${Object.keys(store.mistakes).length} • Для этого слова осталось верных ответов: ${leftCount}`;
+    const qType = document.getElementById('mistakes-q-type');
+    const qMain = document.getElementById('mistakes-q-main');
+    if (kind === 'hz2ru') {
+      qType.textContent = 'Выбери перевод';
+      qMain.textContent = item[0];
+      qMain.className = 'blitz-q-main hz';
+    } else if (kind === 'ru2hz') {
+      qType.textContent = 'Выбери иероглифы';
+      qMain.textContent = item[2];
+      qMain.className = 'blitz-q-main ru-q';
+    } else {
+      qType.textContent = 'Выбери пиньинь';
+      qMain.textContent = item[0];
+      qMain.className = 'blitz-q-main hz';
+    }
+    const box = document.getElementById('mistakes-opts');
+    box.innerHTML = '';
+    opts.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'blitz-opt' + (o.isHz ? ' hz hz-opt' : '');
+      b.textContent = o.label;
+      b.onclick = () => answerMistake(i, b);
+      box.appendChild(b);
+    });
+    const fb = document.getElementById('mistakes-feedback');
+    fb.className = 'feedback';
+    fb.textContent = '';
+    document.getElementById('mistakes-score').textContent = state.score ? `Отработано за сессию: ${state.score}` : '';
+  }
+
+  function answerMistake(idx, btnEl) {
+    if (state.answered) return;
+    state.answered = true;
+    const o = state.opts[idx];
+    const fb = document.getElementById('mistakes-feedback');
+    if (o.correct) {
+      btnEl.classList.add('ok');
+      state.score += 1;
+      resolveMistakeStep(state.item[0]);
+      awardXP(10, true);
+      speakZh(state.item[0], 0.9);
+      const cleared = !store.mistakes[state.item[0]];
+      fb.className = 'feedback good';
+      fb.textContent = cleared
+        ? `✅ Супер! Слово ${state.item[0]} (${state.item[1]}) закрыто и убрано из ошибок!`
+        : `✅ Верно! Осталось ответить ещё 1 раз: ${state.item[0]} (${state.item[1]}) — ${state.item[2]}`;
+    } else {
+      btnEl.classList.add('bad');
+      const allBtns = document.querySelectorAll('#mistakes-opts .blitz-opt');
+      state.opts.forEach((op, i) => { if (op.correct && allBtns[i]) allBtns[i].classList.add('ok'); });
+      awardXP(0, false, state.item[0]);
+      fb.className = 'feedback bad';
+      fb.textContent = `❌ Верно: ${state.item[0]} (${state.item[1]}) — ${state.item[2]}`;
+    }
+    document.getElementById('mistakes-score').textContent = state.score ? `Отработано за сессию: ${state.score}` : '';
+  }
+
+  window.speakMistakeItem = function (rate) {
+    if (state.item) speakZh(state.item[0], rate);
+  };
+
+
+  /* =====================================================================
+     ВКЛАДКИ НИЖНЕГО МЕНЮ (УЧИТЬ / ИГРЫ / СЛОВАРЬ)
+     ===================================================================== */
+  let currentTab = 'learn';
+  window.switchTab = function (tab) {
+    currentTab = tab;
+    ['learn', 'games', 'dict'].forEach(t => {
+      document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
+      document.getElementById('nav-' + t).classList.toggle('active', t === tab);
+    });
+    playSfx('tap');
+    if (tab === 'dict') renderDict();
+  };
+
+  /* =====================================================================
+     ТРЕНИРОВКА ДНЯ (10-ШАГОВЫЙ МИКС: SRS + ТОНЫ + СЛУХ + ПРОПИСИ)
+     ===================================================================== */
+  let dailyWriter = null;
+  function startDailyWorkout() {
+    const vocabPool = getScopedVocab();
+    const dueFirst = [...shuffle(vocabPool.filter(v => isSrsDue(v[0]))), ...shuffle(vocabPool.filter(v => !isSrsDue(v[0])))];
+    const steps = [];
+    const pattern = ['hz2ru', 'audio', 'tone', 'ru2hz', 'write', 'hz2ru', 'audio', 'tone', 'ru2hz', 'write'];
+    const writePool = getWritePool();
+    let wi = 0;
+    for (let i = 0; i < 10; i++) {
+      const kind = pattern[i];
+      if (kind === 'write') {
+        const wItem = writePool[(wi++) % writePool.length] || ALL_WRITE_CHARS[0];
+        steps.push({ kind: 'write', wItem });
+      } else {
+        const item = dueFirst[i % dueFirst.length] || pick(VOCAB);
+        steps.push({ kind, item });
+      }
+    }
+    state = { mode: 'daily', steps, idx: 0, correct: 0, answered: false, opts: [] };
+    showScreen('daily');
+    document.getElementById('daily-active').style.display = 'block';
+    document.getElementById('daily-done').style.display = 'none';
+    renderDailyStep();
+  }
+
+  function renderDailyStep() {
+    const step = state.steps[state.idx];
+    state.answered = false;
+    document.getElementById('daily-step-label').textContent = `Задание ${state.idx + 1} из ${state.steps.length}`;
+    document.getElementById('daily-prog-fill').style.width = `${Math.round(((state.idx + 1) / state.steps.length) * 100)}%`;
+    const fb = document.getElementById('daily-feedback');
+    fb.className = 'feedback';
+    fb.textContent = '';
+    document.getElementById('daily-next-btn').style.display = 'none';
+
+    if (step.kind === 'write') {
+      document.getElementById('daily-kind-label').textContent = '✍️ Пропись';
+      document.getElementById('daily-quiz-area').style.display = 'none';
+      document.getElementById('daily-write-area').style.display = 'block';
+      document.getElementById('daily-w-py').textContent = step.wItem.p;
+      document.getElementById('daily-w-ru').textContent = step.wItem.r;
+      document.getElementById('daily-w-status').textContent = 'Напиши иероглиф по порядку черт';
+      const target = document.getElementById('daily-hanzi-target');
+      target.innerHTML = '';
+      dailyWriter = null;
+      if (typeof HanziWriter !== 'undefined') {
+        try {
+          dailyWriter = HanziWriter.create(target, step.wItem.c, {
+            width: 256, height: 256, padding: 16,
+            showCharacter: false, showOutline: true,
+            outlineColor: '#cbd5e1', strokeColor: '#0f172a',
+            highlightColor: '#e11d48', drawingColor: '#2563eb',
+            drawingWidth: 18, showHintAfterMisses: 2, highlightOnComplete: true
+          });
+          dailyWriter.quiz({
+            onCorrectStroke: () => { playSfx('tap'); haptic('tap'); },
+            onMistake: () => { playSfx('bad'); haptic('bad'); },
+            onComplete: () => {
+              state.answered = true;
+              state.correct += 1;
+              awardXP(10, true);
+              speakZh(step.wItem.c, 0.9);
+              fb.className = 'feedback good';
+              fb.textContent = `✅ Отлично! Иероглиф ${step.wItem.c} написан верно`;
+              document.getElementById('daily-next-btn').style.display = 'block';
+            }
+          });
+        } catch (e) {
+          document.getElementById('daily-next-btn').style.display = 'block';
+        }
+      } else {
+        document.getElementById('daily-w-status').textContent = 'Прописи недоступны офлайн — нажми «Дальше»';
+        document.getElementById('daily-next-btn').style.display = 'block';
+      }
+      return;
+    }
+
+    document.getElementById('daily-quiz-area').style.display = 'block';
+    document.getElementById('daily-write-area').style.display = 'none';
+    const item = step.item;
+    let opts = [];
+    const qType = document.getElementById('daily-q-type');
+    const qMain = document.getElementById('daily-q-main');
+    document.getElementById('daily-audio-bar').style.display = 'flex';
+
+    if (step.kind === 'hz2ru') {
+      document.getElementById('daily-kind-label').textContent = '📖 Перевод';
+      qType.textContent = 'Выбери перевод';
+      qMain.textContent = item[0];
+      qMain.className = 'blitz-q-main hz';
+      const dist = shuffle(VOCAB.filter(v => v[0] !== item[0] && v[2] !== item[2])).slice(0, 3);
+      opts = shuffle([item, ...dist]).map(v => ({ correct: v[0] === item[0], label: v[2], isHz: false }));
+    } else if (step.kind === 'ru2hz') {
+      document.getElementById('daily-kind-label').textContent = '🧩 Иероглифы';
+      qType.textContent = 'Выбери иероглифы';
+      qMain.textContent = item[2];
+      qMain.className = 'blitz-q-main ru-q';
+      document.getElementById('daily-audio-bar').style.display = 'none';
+      const dist = shuffle(VOCAB.filter(v => v[0] !== item[0] && v[2] !== item[2])).slice(0, 3);
+      opts = shuffle([item, ...dist]).map(v => ({ correct: v[0] === item[0], label: v[0], isHz: true }));
+    } else if (step.kind === 'audio') {
+      document.getElementById('daily-kind-label').textContent = '🎧 На слух';
+      qType.textContent = 'Прослушай и выбери слово';
+      qMain.textContent = '🔊';
+      qMain.className = 'blitz-q-main';
+      const dist = shuffle(VOCAB.filter(v => v[0] !== item[0] && v[2] !== item[2])).slice(0, 3);
+      opts = shuffle([item, ...dist]).map(v => ({ correct: v[0] === item[0], label: `${v[0]} · ${v[2]}`, isHz: false }));
+      setTimeout(() => speakZh(item[0], 0.88), 200);
+    } else {
+      document.getElementById('daily-kind-label').textContent = '🎵 Тоны';
+      qType.textContent = 'Выбери правильный пиньинь';
+      qMain.textContent = item[0];
+      qMain.className = 'blitz-q-main hz';
+      const variants = toneVariants(item[1], 3);
+      opts = shuffle(variants).map(py => ({ correct: py === item[1], label: py, isHz: false }));
+    }
+
+    state.opts = opts;
+    const box = document.getElementById('daily-opts');
+    box.innerHTML = '';
+    opts.forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = 'blitz-opt' + (o.isHz ? ' hz hz-opt' : '');
+      b.textContent = o.label;
+      b.onclick = () => answerDailyOpt(i, b);
+      box.appendChild(b);
+    });
+  }
+
+  function answerDailyOpt(idx, btnEl) {
+    if (state.answered) return;
+    state.answered = true;
+    const step = state.steps[state.idx];
+    const o = state.opts[idx];
+    const fb = document.getElementById('daily-feedback');
+    if (o.correct) {
+      btnEl.classList.add('ok');
+      state.correct += 1;
+      updateSrs(step.item[0], 2);
+      awardXP(8, true);
+      speakZh(step.item[0], 0.9);
+      fb.className = 'feedback good';
+      fb.textContent = `✅ Верно! ${step.item[0]} (${step.item[1]}) — ${step.item[2]}`;
+    } else {
+      btnEl.classList.add('bad');
+      const allBtns = document.querySelectorAll('#daily-opts .blitz-opt');
+      state.opts.forEach((op, i) => { if (op.correct && allBtns[i]) allBtns[i].classList.add('ok'); });
+      updateSrs(step.item[0], 0);
+      awardXP(0, false, step.item[0]);
+      fb.className = 'feedback bad';
+      fb.textContent = `❌ Верно: ${step.item[0]} (${step.item[1]}) — ${step.item[2]}`;
+    }
+    document.getElementById('daily-next-btn').style.display = 'block';
+  }
+
+  window.nextDailyStep = function () {
+    state.idx += 1;
+    if (state.idx >= state.steps.length) {
+      document.getElementById('daily-active').style.display = 'none';
+      document.getElementById('daily-done').style.display = 'block';
+      markDayCompleted();
+      awardXP(50, true);
+      if (typeof confetti === 'function') {
+        try { confetti({ particleCount: 80, spread: 65, origin: { y: 0.6 } }); } catch (e) {}
+      }
+      document.getElementById('daily-done-detail').textContent =
+        `Верно выполнено: ${state.correct} из ${state.steps.length} • Можно спокойно закрывать, без чувства вины`;
+      return;
+    }
+    renderDailyStep();
+  };
+  window.speakDaily = function (rate) {
+    const step = state.steps && state.steps[state.idx];
+    if (!step) return;
+    speakZh(step.kind === 'write' ? step.wItem.c : step.item[0], rate);
+  };
+  window.animateDailyWrite = function () {
+    if (dailyWriter) dailyWriter.animateCharacter();
+  };
+
+  /* =====================================================================
+     ВКЛАДКА «СЛОВАРЬ» + МОДАЛКА СЛОВА С АНИМАЦИЕЙ ЧЕРТ
+     ===================================================================== */
+  let dictFilter = 'all';
+  let dictTopic = 'all';
+  let modalWord = null;
+
+  window.setDictTopic = function (tid) {
+    dictTopic = tid;
+    playSfx('tap');
+    renderDict();
+  };
+  function renderDictTopics() {
+    const box = document.getElementById('dict-topics');
+    if (!box) return;
+    box.innerHTML = '';
+    TOPICS.forEach(t => {
+      const b = document.createElement('button');
+      b.className = 'topic-chip' + (dictTopic === t.id ? ' active' : '');
+      b.textContent = t.label;
+      b.onclick = () => setDictTopic(t.id);
+      box.appendChild(b);
+    });
+  }
+
+  window.setDictFilter = function (f) {
+    dictFilter = f;
+    ['all', 'new', 'due', 'learned', 'err'].forEach(k => {
+      const b = document.getElementById('df-' + k);
+      if (b) b.classList.toggle('active', k === f);
+    });
+    playSfx('tap');
+    renderDict();
+  };
+
+  window.renderDict = function () {
+    const masteredCnt = VOCAB.filter(v => (store.srs[v[0]] && store.srs[v[0]].l >= 2)).length;
+    const dueCnt = VOCAB.filter(v => isSrsDue(v[0])).length;
+    const td = todayNum();
+    const activeDS = (store.lastDay === td || store.lastDay === td - 1) ? (store.dayStreak || 0) : 0;
+    document.getElementById('st-mastered').textContent = masteredCnt;
+    document.getElementById('st-due').textContent = dueCnt;
+    document.getElementById('st-days').textContent = activeDS;
+    document.getElementById('st-blitz').textContent = store.bestBlitz || 0;
+
+    const q = (document.getElementById('dict-search').value || '').trim().toLowerCase();
+    const listEl = document.getElementById('dict-list');
+    listEl.innerHTML = '';
+
+    renderDictTopics();
+    const filtered = VOCAB.filter(([hz, py, ru, isNew]) => {
+      if (dictTopic !== 'all' && getWordTopic(hz) !== dictTopic) return false;
+      if (dictFilter === 'new' && !isNew) return false;
+      if (dictFilter === 'due' && !isSrsDue(hz)) return false;
+      if (dictFilter === 'learned' && !(store.srs[hz] && store.srs[hz].l >= 1)) return false;
+      if (dictFilter === 'err' && !(store.mistakes && store.mistakes[hz])) return false;
+      if (q) {
+        const plainPy = py.split(' ').map(x => splitTone(x).base).join(' ');
+        if (!hz.includes(q) && !py.toLowerCase().includes(q) && !plainPy.includes(q) && !ru.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+
+    if (!filtered.length) {
+      listEl.appendChild(el('div', 'score-line', 'Ничего не найдено по этому фильтру'));
+      return;
+    }
+
+    filtered.forEach(item => {
+      const [hz, py, ru, isNew] = item;
+      const row = el('button', 'dict-row');
+      row.appendChild(el('div', 'dict-hz hz', hz));
+      const mid = el('div', 'dict-mid');
+      mid.appendChild(el('div', 'dict-py', py));
+      mid.appendChild(el('div', 'dict-ru', ru));
+      row.appendChild(mid);
+
+      let pillCls = 'srs-pill', pillTxt = isNew ? 'Новое' : 'Учить';
+      if (store.mistakes && store.mistakes[hz]) { pillCls += ' err'; pillTxt = 'Ошибка'; }
+      else if (store.srs[hz] && store.srs[hz].l >= 1) {
+        const leftD = store.srs[hz].n - todayNum();
+        if (leftD <= 0) { pillCls += ' due'; pillTxt = 'Повторить'; }
+        else { pillCls += ' ok'; pillTxt = `Ур.${store.srs[hz].l} (${leftD}д)`; }
+      }
+      row.appendChild(el('span', pillCls, pillTxt));
+      row.onclick = () => openWordModal(item);
+      listEl.appendChild(row);
+    });
+  };
+
+  function openWordModal(item) {
+    modalWord = item;
+    const [hz, py, ru] = item;
+    document.getElementById('modal-hz').textContent = hz;
+    document.getElementById('modal-py').textContent = py;
+    document.getElementById('modal-ru').textContent = ru;
+
+    const rec = store.srs[hz];
+    const pill = document.getElementById('modal-srs-pill');
+    pill.textContent = rec && rec.l >= 1 ? `SRS уровень ${rec.l}` : 'Ещё изучается';
+    document.getElementById('modal-mark-btn').textContent = (rec && rec.l >= 1) ? '🔄 Сбросить в повтор' : '✅ Отметить выученным';
+
+    const ex = PARSED.find(x => x.fullH.includes(hz));
+    const exBox = document.getElementById('modal-ex');
+    if (ex) {
+      exBox.style.display = 'block';
+      document.getElementById('modal-ex-hz').textContent = ex.fullH;
+      document.getElementById('modal-ex-py').textContent = ex.fullP;
+      document.getElementById('modal-ex-ru').textContent = ex.ru;
+    } else {
+      exBox.style.display = 'none';
+    }
+
+    const strokesRow = document.getElementById('modal-strokes-row');
+    strokesRow.innerHTML = '';
+    [...hz].forEach(ch => {
+      const box = el('div', 'mini-stroke-box');
+      strokesRow.appendChild(box);
+      if (typeof HanziWriter !== 'undefined') {
+        try {
+          const w = HanziWriter.create(box, ch, {
+            width: 96, height: 96, padding: 6,
+            strokeColor: '#0f172a', radicalColor: '#e11d48',
+            strokeAnimationSpeed: 1.2, delayBetweenStrokes: 180
+          });
+          box.onclick = () => w.animateCharacter();
+        } catch (e) { box.textContent = ch; }
+      } else {
+        box.style.display = 'flex';
+        box.style.alignItems = 'center';
+        box.style.justifyContent = 'center';
+        box.style.fontSize = '44px';
+        box.textContent = ch;
+      }
+    });
+
+    document.getElementById('word-modal').classList.add('open');
+    playSfx('tap');
+  }
+  window.closeWordModal = function () {
+    document.getElementById('word-modal').classList.remove('open');
+  };
+  window.speakModalWord = function (rate) {
+    if (modalWord) speakZh(modalWord[0], rate);
+  };
+  window.toggleModalLearned = function () {
+    if (!modalWord) return;
+    const hz = modalWord[0];
+    const rec = store.srs[hz];
+    if (rec && rec.l >= 1) updateSrs(hz, 0);
+    else updateSrs(hz, 2);
+    openWordModal(modalWord);
+    renderDict();
+  };
+
+  /* =====================================================================
+     РЕЖИМ 15: ЧТЕНИЕ (КОРОТКИЕ ТЕКСТЫ С ПОДСКАЗКОЙ ПО НАЖАТИЮ)
+     ===================================================================== */
+  const READING_TEXTS = [{"id": "r1", "title": "Мой день с китайским", "topic": "actions", "isNew": true, "sents": [[["我", "wǒ", "я"], ["每", "měi", "каждый"], ["天", "tiān", "день"], ["学习", "xué xí", "учить, изучать"], ["汉语", "hàn yǔ", "китайский язык"], ["。"]], [["我", "wǒ", "я"], ["会", "huì", "уметь"], ["说", "shuō", "говорить"], ["一点点", "yī diǎn diǎn", "чуть-чуть"], ["汉语", "hàn yǔ", "китайский язык"], ["，"], ["也", "yě", "тоже"], ["会", "huì", "уметь"], ["写", "xiě", "писать"], ["一点点", "yī diǎn diǎn", "чуть-чуть"], ["汉字", "hàn zì", "иероглифы"], ["。"]], [["早上", "zǎo shang", "утром"], ["我", "wǒ", "я"], ["在", "zài", "в, находиться"], ["家", "jiā", "дома"], ["听", "tīng", "слушать"], ["老师", "lǎo shī", "учитель"], ["说", "shuō", "говорить"], ["，"], ["下午", "xià wǔ", "днём"], ["我", "wǒ", "я"], ["打字", "dǎ zì", "печатать"], ["工作", "gōng zuò", "работать"], ["。"]], [["晚上", "wǎn shang", "вечером"], ["我", "wǒ", "я"], ["想", "xiǎng", "хотеть"], ["休息", "xiū xi", "отдыхать"], ["，"], ["不", "bù", "не"], ["工作", "gōng zuò", "работать"], ["。"]]], "ru": "Каждый день я учу китайский язык. Я умею чуть-чуть говорить по-китайски и тоже умею немного писать иероглифы. Утром я дома слушаю, как говорит учитель, а днём печатаю и работаю. Вечером я хочу отдохнуть, не работать.", "q": "Что герой хочет делать вечером?", "opts": ["Работать за компьютером", "Отдыхать", "Слушать учителя"], "ans": 1}, {"id": "r2", "title": "Прогулка с другом", "topic": "family", "isNew": true, "sents": [[["他", "tā", "он"], ["是", "shì", "быть, являться"], ["我", "wǒ", "я"], ["的", "de", "частица принадлежности"], ["好", "hǎo", "хороший"], ["朋友", "péng you", "друг"], ["，"], ["住", "zhù", "жить"], ["在", "zài", "в"], ["俄罗斯", "é luó sī", "Россия"], ["。"]], [["今天", "jīn tiān", "сегодня"], ["天气", "tiān qì", "погода"], ["很", "hěn", "очень"], ["温暖", "wēn nuǎn", "тёплый"], ["，"], ["是", "shì", "быть"], ["晴天", "qíng tiān", "ясный день"], ["。"]], [["我们", "wǒ men", "мы"], ["一起", "yī qǐ", "вместе"], ["出去", "chū qù", "выходить"], ["走路", "zǒu lù", "гулять пешком"], ["，"], ["也", "yě", "тоже"], ["喜欢", "xǐ huan", "нравиться"], ["观察", "guān chá", "наблюдать"], ["猫", "māo", "кошка"], ["和", "hé", "и"], ["狗", "gǒu", "собака"], ["。"]], [["下午", "xià wǔ", "днём"], ["我", "wǒ", "я"], ["回", "huí", "возвращаться"], ["家", "jiā", "домой"], ["，"], ["和", "hé", "с"], ["朋友", "péng you", "друг"], ["说", "shuō", "говорить"], ["："], ["明天", "míng tiān", "завтра"], ["见", "jiàn", "увидеться"], ["！"]]], "ru": "Он мой хороший друг, живёт в России. Сегодня тёплая погода, ясный день. Мы вместе выходим погулять, а также любим наблюдать за кошками и собаками. Днём я возвращаюсь домой и говорю другу: «Увидимся завтра!»", "q": "Какая погода в рассказе?", "opts": ["Холодно и дождь", "Тепло и ясно", "Сильный туман"], "ans": 1}, {"id": "r3", "title": "Выходной и танцы", "topic": "actions", "isNew": true, "sents": [[["今天", "jīn tiān", "сегодня"], ["星期天", "xīng qī tiān", "воскресенье"], ["，"], ["我", "wǒ", "я"], ["不", "bù", "не"], ["工作", "gōng zuò", "работать"], ["。"]], [["我", "wǒ", "я"], ["的", "de", "мой"], ["朋友", "péng you", "друг / подруга"], ["很", "hěn", "очень"], ["会", "huì", "уметь"], ["跳舞", "tiào wǔ", "танцевать"], ["，"], ["她", "tā", "она"], ["非常", "fēi cháng", "чрезвычайно"], ["快乐", "kuài lè", "счастливый"], ["。"]], [["她", "tā", "она"], ["问", "wèn", "спрашивать"], ["我", "wǒ", "меня"], ["："], ["你", "nǐ", "ты"], ["想", "xiǎng", "хотеть"], ["一起", "yī qǐ", "вместе"], ["跳舞", "tiào wǔ", "танцевать"], ["吗", "ma", "вопросит. частица"], ["？"]], [["我", "wǒ", "я"], ["说", "shuō", "говорить"], ["："], ["行", "xíng", "годится, хорошо"], ["！"], ["我们", "wǒ men", "мы"], ["在一起", "zài yī qǐ", "вместе"], ["很", "hěn", "очень"], ["高兴", "gāo xìng", "радостный"], ["。"]]], "ru": "Сегодня воскресенье, я не работаю. Моя подруга очень хорошо умеет танцевать, она чрезвычайно счастлива. Она спрашивает меня: «Хочешь потанцевать вместе?» Я говорю: «Годится! Нам вместе очень радостно.»", "q": "Что ответил герой на приглашение потанцевать?", "opts": ["Сказал, что работает", "Согласился (行!)", "Сказал, что хочет домой"], "ans": 1}, {"id": "r4", "title": "Где вход и выход?", "topic": "intro", "isNew": true, "sents": [[["请问", "qǐng wèn", "скажите, пожалуйста"], ["，"], ["入口", "rù kǒu", "вход"], ["在", "zài", "находиться"], ["这里", "zhè lǐ", "здесь"], ["吗", "ma", "ли?"], ["？"]], [["不", "bú", "не"], ["对", "duì", "верно"], ["，"], ["这", "zhè", "это"], ["是", "shì", "есть"], ["出口", "chū kǒu", "выход"], ["，"], ["不", "bú", "не"], ["是", "shì", "есть"], ["入口", "rù kǒu", "вход"], ["。"]], [["请问", "qǐng wèn", "скажите, пожалуйста"], ["，"], ["我", "wǒ", "я"], ["可以", "kě yǐ", "можно"], ["坐", "zuò", "сидеть, сесть"], ["这里", "zhè lǐ", "здесь"], ["吗", "ma", "ли?"], ["？"]], [["可以", "kě yǐ", "можно"], ["！"], ["现在", "xiàn zài", "сейчас"], ["休息", "xiū xi", "отдохнуть"], ["一点点", "yī diǎn diǎn", "чуть-чуть"], ["，"], ["再", "zài", "затем, потом"], ["走路", "zǒu lù", "идти пешком"], ["。"]]], "ru": "Скажите, пожалуйста, вход здесь? Неверно, это выход, а не вход. Скажите, пожалуйста, можно мне здесь сесть? Можно! Сейчас чуть-чуть отдохнём, а потом пойдём дальше.", "q": "Что оказалось в том месте, про которое спрашивали?", "opts": ["Вход", "Выход", "Учитель"], "ans": 1}, {"id": "r5", "title": "Моя семья и питомцы", "topic": "family", "isNew": false, "sents": [[["我们", "wǒ men", "мы"], ["家", "jiā", "семья, дом"], ["有", "yǒu", "иметь, есть"], ["五个", "wǔ ge", "пять"], ["人", "rén", "человек"], ["："], ["爸爸", "bà ba", "папа"], ["、"], ["妈妈", "mā ma", "мама"], ["、"], ["哥哥", "gē ge", "старший брат"], ["、"], ["妹妹", "mèi mei", "младшая сестра"], ["和", "hé", "и"], ["我", "wǒ", "я"], ["。"]], [["我", "wǒ", "мой"], ["爸爸", "bà ba", "папа"], ["是", "shì", "есть"], ["数学", "shù xué", "математика"], ["老师", "lǎo shī", "учитель"], ["，"], ["他", "tā", "он"], ["很", "hěn", "очень"], ["高", "gāo", "высокий"], ["。"]], [["我", "wǒ", "моя"], ["妈妈", "mā ma", "мама"], ["很", "hěn", "очень"], ["漂亮", "piào liang", "красивая"], ["，"], ["她", "tā", "она"], ["喜欢", "xǐ huan", "любить, нравиться"], ["茶", "chá", "чай"], ["。"]], [["我们", "wǒ men", "мы"], ["家", "jiā", "дом"], ["也", "yě", "тоже"], ["有", "yǒu", "есть"], ["猫", "māo", "кошка"], ["和", "hé", "и"], ["狗", "gǒu", "собака"], ["，"], ["猫", "māo", "кошка"], ["很", "hěn", "очень"], ["爱", "ài", "любить"], ["喵喵叫", "miāo miāo jiào", "мяукать"], ["。"]]], "ru": "В нашей семье пять человек: папа, мама, старший брат, младшая сестра и я. Мой папа — учитель математики, он высокий. Моя мама очень красивая, она любит чай. У нас дома тоже есть кошка и собака, кошка очень любит мяукать.", "q": "Кем работает папа в рассказе?", "opts": ["Учителем английского", "Учителем математики", "Танцором"], "ans": 1}, {"id": "r6", "title": "Погода в городе", "topic": "weather", "isNew": false, "sents": [[["我", "wǒ", "я"], ["住", "zhù", "жить"], ["在", "zài", "в"], ["一个", "yī ge", "один"], ["大", "dà", "большой"], ["城市", "chéng shì", "город"], ["，"], ["这个", "zhè ge", "этот"], ["城市", "chéng shì", "город"], ["很", "hěn", "очень"], ["美", "měi", "красивый"], ["。"]], [["昨天", "zuó tiān", "вчера"], ["天气", "tiān qì", "погода"], ["很", "hěn", "очень"], ["冷", "lěng", "холодно"], ["，"], ["下", "xià", "идти (об осадках)"], ["雨", "yǔ", "дождь"], ["了", "le", "частица завершённости"], ["，"], ["风", "fēng", "ветер"], ["很", "hěn", "очень"], ["大", "dà", "сильный, большой"], ["。"]], [["今天", "jīn tiān", "сегодня"], ["不", "bú", "не"], ["下", "xià", "идти"], ["雨", "yǔ", "дождь"], ["，"], ["也", "yě", "тоже"], ["不", "bú", "не"], ["下", "xià", "идти"], ["雪", "xuě", "снег"], ["，"], ["今天", "jīn tiān", "сегодня"], ["多云", "duō yún", "облачно"], ["，"], ["很", "hěn", "очень"], ["凉爽", "liáng shuǎng", "прохладно"], ["。"]], [["我", "wǒ", "я"], ["喜欢", "xǐ huan", "нравиться"], ["温暖", "wēn nuǎn", "тёплый"], ["的", "de", "частица определения"], ["天气", "tiān qì", "погода"], ["，"], ["不", "bù", "не"], ["喜欢", "xǐ huan", "нравиться"], ["雾", "wù", "туман"], ["。"]]], "ru": "Я живу в большом городе, этот город очень красивый. Вчера погода была очень холодная, шёл дождь, ветер был сильный. Сегодня нет дождя и нет снега, сегодня облачно и очень прохладно. Мне нравится тёплая погода, не нравится туман.", "q": "Что герою НЕ нравится в погоде?", "opts": ["Тёплая погода", "Облачность", "Туман"], "ans": 2}, {"id": "r7", "title": "День рождения и время", "topic": "time", "isNew": false, "sents": [[["今天", "jīn tiān", "сегодня"], ["十", "shí", "десять"], ["月", "yuè", "месяц"], ["八", "bā", "восемь"], ["号", "hào", "число"], ["，"], ["星期", "xīng qī", "неделя"], ["四", "sì", "четыре (четверг)"], ["。"]], [["明天", "míng tiān", "завтра"], ["是", "shì", "есть"], ["我", "wǒ", "мой"], ["的", "de", "принадлежность"], ["生日", "shēng rì", "день рождения"], ["，"], ["我", "wǒ", "мне"], ["二十七", "èr shí qī", "27"], ["岁", "suì", "лет"], ["。"]], [["请问", "qǐng wèn", "скажите, пожалуйста"], ["，"], ["现在", "xiàn zài", "сейчас"], ["几", "jǐ", "сколько"], ["点", "diǎn", "час"], ["？"], ["现在", "xiàn zài", "сейчас"], ["下午", "xià wǔ", "после полудня"], ["三", "sān", "три"], ["点", "diǎn", "час"], ["半", "bàn", "половина"], ["。"]], [["晚上", "wǎn shang", "вечером"], ["六", "liù", "шесть"], ["点", "diǎn", "час"], ["一", "yī", "один"], ["刻", "kè", "четверть часа"], ["，"], ["我", "wǒ", "я"], ["和", "hé", "с"], ["父母", "fù mǔ", "родители"], ["在", "zài", "в"], ["家", "jiā", "дома"], ["在一起", "zài yī qǐ", "вместе"], ["。"]]], "ru": "Сегодня 8 октября, четверг. Завтра мой день рождения, мне 27 лет. Скажите, пожалуйста, который сейчас час? Сейчас 3:30 дня. В 6:15 вечера я дома вместе с родителями.", "q": "Во сколько герой будет дома с родителями?", "opts": ["В 3:30 дня", "В 6:15 вечера", "В 8:00 утра"], "ans": 1}, {"id": "r8", "title": "Знакомство", "topic": "intro", "isNew": false, "sents": [[["大家", "dà jiā", "все"], ["好", "hǎo", "хорошо (привет!)"], ["！"], ["我", "wǒ", "я"], ["叫", "jiào", "зваться"], ["葛利高里", "gé lì gāo lǐ", "Григорий"], ["，"], ["我", "wǒ", "я"], ["是", "shì", "есть"], ["俄罗斯", "é luó sī", "Россия"], ["人", "rén", "человек"], ["。"]], [["我", "wǒ", "мой"], ["的", "de", "принадлежность"], ["朋友", "péng you", "друг / подруга"], ["叫", "jiào", "зваться"], ["波莉纳", "bō lì nà", "Полина"], ["，"], ["她", "tā", "она"], ["是", "shì", "есть"], ["英语", "yīng yǔ", "английский язык"], ["老师", "lǎo shī", "учитель"], ["。"]], [["我们", "wǒ men", "мы"], ["每", "měi", "каждый"], ["天", "tiān", "день"], ["说", "shuō", "говорить"], ["俄语", "é yǔ", "русский язык"], ["，"], ["也", "yě", "тоже"], ["学习", "xué xí", "изучать"], ["汉语", "hàn yǔ", "китайский язык"], ["和", "hé", "и"], ["汉字", "hàn zì", "иероглифы"], ["。"]], [["明天", "míng tiān", "завтра"], ["上午", "shàng wǔ", "утром (до полудня)"], ["十", "shí", "десять"], ["点", "diǎn", "часов"], ["见", "jiàn", "увидеться"], ["！"], ["晚安", "wǎn ān", "спокойной ночи"], ["，"], ["好梦", "hǎo mèng", "сладких снов"], ["！"]]], "ru": "Всем привет! Меня зовут Григорий, я из России. Мою подругу зовут Полина, она учитель английского. Каждый день мы говорим по-русски, а также учим китайский язык и иероглифы. Увидимся завтра в 10 утра! Спокойной ночи, сладких снов!", "q": "Во сколько друзья договорились увидеться завтра?", "opts": ["В 10 утра", "В полдень", "В 6 вечера"], "ans": 0}];
+
+  function getFilteredReadingTexts() {
+    if (store.topic && store.topic !== 'all') {
+      const byTopic = READING_TEXTS.filter(t => t.topic === store.topic);
+      if (byTopic.length) return byTopic;
+    }
+    return READING_TEXTS;
+  }
+
+  function startReading() {
+    const list = getFilteredReadingTexts();
+    state = {
+      mode: 'reading',
+      list,
+      idx: 0,
+      showPy: false,
+      showTrans: false,
+      selectedTok: null,
+      quizAnswered: false,
+      quizPicked: -1
+    };
+    showScreen('reading');
+    renderReading();
+  }
+
+  function renderReading() {
+    const t = state.list[state.idx];
+    if (!t) return;
+    const isRead = (store.readTexts || []).includes(t.id);
+    const topicObj = TOPICS.find(x => x.id === t.topic);
+    document.getElementById('read-title').textContent = t.title;
+    document.getElementById('read-meta').textContent =
+      `Текст ${state.idx + 1} из ${state.list.length} · ${topicObj ? topicObj.label : ''}${isRead ? ' · ✅ Прочитано' : ''}`;
+
+    const card = document.getElementById('read-card');
+    card.className = 'read-card hz' + (state.showPy ? ' show-py' : '');
+    card.innerHTML = '';
+    t.sents.forEach((sent, si) => {
+      const p = document.createElement('div');
+      p.className = 'read-sent';
+      sent.forEach((tok, ti) => {
+        if (tok.length === 1) {
+          p.appendChild(el('span', 'read-punct', tok[0]));
+          return;
+        }
+        const [hz, py, ru] = tok;
+        const w = document.createElement('span');
+        const isActive = state.selectedTok && state.selectedTok.si === si && state.selectedTok.ti === ti;
+        w.className = 'read-word' + (isActive ? ' active' : '');
+        w.appendChild(el('span', 'rw-py', py));
+        w.appendChild(el('span', 'rw-hz', hz));
+        w.onclick = () => selectReadWord(si, ti, hz, py, ru);
+        p.appendChild(w);
+      });
+      card.appendChild(p);
+    });
+
+    const popup = document.getElementById('read-popup');
+    popup.innerHTML = '';
+    if (state.selectedTok) {
+      popup.className = 'read-popup';
+      const left = el('div', 'read-popup-left');
+      left.appendChild(el('span', 'read-popup-hz hz', state.selectedTok.hz));
+      left.appendChild(el('span', 'read-popup-py', state.selectedTok.py));
+      left.appendChild(el('div', 'read-popup-ru', state.selectedTok.ru));
+      popup.appendChild(left);
+      const spk = el('button', 'icon-btn', '🔊');
+      spk.title = 'Озвучить слово';
+      spk.onclick = () => speakZh(state.selectedTok.hz, 0.9);
+      popup.appendChild(spk);
+    } else {
+      popup.className = 'read-popup empty';
+      popup.textContent = 'Нажми на любое слово в тексте — покажу пиньинь и перевод';
+    }
+
+    document.getElementById('read-py-btn').classList.toggle('on', !!state.showPy);
+    document.getElementById('read-tr-btn').classList.toggle('on', !!state.showTrans);
+    const trBox = document.getElementById('read-trans');
+    trBox.style.display = state.showTrans ? 'block' : 'none';
+    trBox.textContent = t.ru;
+
+    document.getElementById('read-quiz-q').textContent = '❓ Проверка понимания: ' + t.q;
+    const optsBox = document.getElementById('read-quiz-opts');
+    optsBox.innerHTML = '';
+    t.opts.forEach((optText, oi) => {
+      const b = document.createElement('button');
+      b.className = 'read-quiz-opt';
+      if (state.quizAnswered) {
+        if (oi === t.ans) b.classList.add('ok');
+        else if (oi === state.quizPicked) b.classList.add('bad');
+      }
+      b.textContent = optText;
+      b.onclick = () => answerReadQuiz(oi);
+      optsBox.appendChild(b);
+    });
+
+    const doneBtn = document.getElementById('read-done-btn');
+    doneBtn.textContent = isRead ? '✅ Текст уже отмечен прочитанным' : '✅ Отметить прочитанным (+15 XP)';
+  }
+
+  function selectReadWord(si, ti, hz, py, ru) {
+    state.selectedTok = { si, ti, hz, py, ru };
+    playSfx('tap');
+    haptic('tap');
+    speakZh(hz, 0.92);
+    renderReading();
+  }
+
+  function answerReadQuiz(oi) {
+    if (state.quizAnswered) return;
+    const t = state.list[state.idx];
+    state.quizAnswered = true;
+    state.quizPicked = oi;
+    if (oi === t.ans) awardXP(10, true);
+    else awardXP(0, false);
+    renderReading();
+  }
+
+  window.toggleReadPinyin = function () {
+    state.showPy = !state.showPy;
+    playSfx('tap');
+    renderReading();
+  };
+  window.toggleReadTrans = function () {
+    state.showTrans = !state.showTrans;
+    playSfx('tap');
+    renderReading();
+  };
+  window.speakReadText = function (rate) {
+    const t = state.list && state.list[state.idx];
+    if (!t) return;
+    const full = t.sents.map(s => s.map(tok => tok[0]).join('')).join(' ');
+    speakZh(full, rate);
+  };
+  window.prevReadText = function () {
+    if (!state.list) return;
+    state.idx = (state.idx - 1 + state.list.length) % state.list.length;
+    state.selectedTok = null;
+    state.showTrans = false;
+    state.quizAnswered = false;
+    state.quizPicked = -1;
+    playSfx('tap');
+    renderReading();
+  };
+  window.nextReadText = function () {
+    if (!state.list) return;
+    state.idx = (state.idx + 1) % state.list.length;
+    state.selectedTok = null;
+    state.showTrans = false;
+    state.quizAnswered = false;
+    state.quizPicked = -1;
+    playSfx('tap');
+    renderReading();
+  };
+  window.markReadDone = function () {
+    const t = state.list && state.list[state.idx];
+    if (!t) return;
+    if (!store.readTexts.includes(t.id)) {
+      store.readTexts.push(t.id);
+      awardXP(15, true);
+    } else {
+      playSfx('tap');
+    }
+    renderReading();
+  };
+
   // Инициализация
   updateTopStats();
   showScreen('menu');
+  loadFromCloud();
 </script>
 </body>
 </html>
