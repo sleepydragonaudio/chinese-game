@@ -1466,6 +1466,13 @@
 
     <!-- ВКЛАДКА 2: ИГРЫ -->
     <div id="tab-games" style="display:none;">
+      <div class="scope-card" style="margin-bottom:10px;">
+        <div class="mastery-row" style="margin-bottom:4px;">
+          <span>Фильтр по теме для всех игр</span>
+          <span id="games-topic-count" style="color:var(--blue); font-weight:800;">Все темы</span>
+        </div>
+        <div class="topic-chips" id="games-topics" style="margin-top:0;"></div>
+      </div>
       <div class="menu-group" style="margin-top:4px;">Аркада, тоны и слух</div>
       <div class="menu-grid">
         <button class="menu-btn" onclick="startGame('tones')">
@@ -1733,10 +1740,10 @@
 
   <!-- ================= MODE 12: WRITING (ПРОПИСИ) ================= -->
   <div id="screen-writing" style="display:none;">
-    <div class="game-header">12. Прописи (порядок и направление черт)</div>
+    <div class="game-header">12. Прописи (тренировка написания)</div>
     <div class="mode-switch">
-      <button class="scope-pill active" id="write-mode-trace" onclick="setWriteMode('trace')">✏️ С контуром</button>
-      <button class="scope-pill" id="write-mode-blind" onclick="setWriteMode('blind')">🧠 По памяти</button>
+      <button class="scope-pill active" id="write-mode-blind" onclick="setWriteOutline(false)">🧠 По памяти</button>
+      <button class="scope-pill" id="write-mode-trace" onclick="setWriteOutline(true)">👁️ Показать контур</button>
     </div>
     <div class="write-card">
       <div class="write-meta">
@@ -1820,9 +1827,10 @@
             <span class="write-py" id="daily-w-py">想</span>
             <span class="write-ru" id="daily-w-ru">хотеть</span>
           </div>
-          <div class="audio-bar" style="margin-bottom:6px;">
+          <div class="audio-bar" style="margin-bottom:6px; flex-wrap:wrap;">
             <button class="audio-btn" onclick="speakDaily(0.92)">🔊 Озвучить</button>
-            <button class="audio-btn secondary" onclick="animateDailyWrite()">▶️ Показать порядок</button>
+            <button class="audio-btn secondary" id="daily-outline-btn" onclick="toggleDailyOutline()">👁️ Контур</button>
+            <button class="audio-btn secondary" onclick="animateDailyWrite()">▶️ Порядок</button>
           </div>
           <div class="write-box-wrap">
             <div class="write-box">
@@ -1957,8 +1965,8 @@
 
   let store = {
     xp: 0, streak: 0, dayStreak: 0, lastDay: 0, daysDone: [],
-    bestBlitz: 0, mastered: [], srs: {}, mistakes: {}, readTexts: [],
-    sound: true, dark: false, scope: 'new', topic: 'all', phonMode: 'quiz', writeMode: 'trace',
+    bestBlitz: 0, mastered: [], srs: {}, mistakes: {}, mistakeCounts: {}, readTexts: [],
+    sound: true, dark: false, scope: 'new', topic: 'all', phonMode: 'quiz', writeOutline: false,
     updatedAt: 0
   };
   try {
@@ -1967,6 +1975,8 @@
   } catch (e) {}
   if (!store.srs || typeof store.srs !== 'object') store.srs = {};
   if (!store.mistakes || typeof store.mistakes !== 'object') store.mistakes = {};
+  if (!store.mistakeCounts || typeof store.mistakeCounts !== 'object') store.mistakeCounts = {};
+  if (typeof store.writeOutline !== 'boolean') store.writeOutline = false;
   if (!Array.isArray(store.daysDone)) store.daysDone = [];
   if (!Array.isArray(store.mastered)) store.mastered = [];
   if (!Array.isArray(store.readTexts)) store.readTexts = [];
@@ -2022,10 +2032,10 @@
         const meta = JSON.stringify({
           xp: store.xp, streak: store.streak, dayStreak: store.dayStreak,
           lastDay: store.lastDay, daysDone: (store.daysDone || []).slice(-14),
-          bestBlitz: store.bestBlitz, mistakes: store.mistakes,
+          bestBlitz: store.bestBlitz, mistakes: store.mistakes, mistakeCounts: store.mistakeCounts,
           readTexts: store.readTexts,
           sound: store.sound, dark: store.dark, scope: store.scope, topic: store.topic,
-          phonMode: store.phonMode, writeMode: store.writeMode,
+          phonMode: store.phonMode, writeOutline: store.writeOutline,
           updatedAt: store.updatedAt || Date.now(),
           srsChunks: chunks.length
         });
@@ -2110,11 +2120,12 @@
             }
             if (cloudUpdatedAt > (store.updatedAt || 0)) {
               if (m.mistakes && typeof m.mistakes === 'object') { store.mistakes = { ...m.mistakes }; changed = true; }
+              if (m.mistakeCounts && typeof m.mistakeCounts === 'object') { store.mistakeCounts = { ...m.mistakeCounts }; changed = true; }
               if (typeof m.scope === 'string') store.scope = m.scope;
               if (typeof m.topic === 'string') store.topic = m.topic;
               if (typeof m.sound === 'boolean') store.sound = m.sound;
               if (typeof m.phonMode === 'string') store.phonMode = m.phonMode;
-              if (typeof m.writeMode === 'string') store.writeMode = m.writeMode;
+              if (typeof m.writeOutline === 'boolean') store.writeOutline = m.writeOutline;
               if (typeof m.dark === 'boolean') {
                 store.dark = m.dark;
                 document.body.classList.toggle('dark', store.dark);
@@ -2270,8 +2281,27 @@
   }
 
   let activeTtsAudio = null;
+  let activeTtsPlaying = false;
+  let activeTtsText = '';
+
+  function stopZhAudio() {
+    if (activeTtsAudio) {
+      try { activeTtsAudio.pause(); activeTtsAudio.currentTime = 0; } catch (e) {}
+      activeTtsAudio = null;
+    }
+    if ('speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
+    activeTtsPlaying = false;
+    activeTtsText = '';
+  }
+
   function speakWithBrowserTts(text, rate) {
-    if (!('speechSynthesis' in window)) return;
+    if (!('speechSynthesis' in window)) {
+      activeTtsPlaying = false;
+      activeTtsText = '';
+      return;
+    }
     try {
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
@@ -2280,18 +2310,24 @@
       const voices = window.speechSynthesis.getVoices();
       const zh = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('zh'));
       if (zh) u.voice = zh;
+      activeTtsPlaying = true;
+      activeTtsText = text;
+      u.onend = () => { activeTtsPlaying = false; activeTtsText = ''; };
+      u.onerror = () => { activeTtsPlaying = false; activeTtsText = ''; };
       window.speechSynthesis.speak(u);
-    } catch (e) {}
+    } catch (e) {
+      activeTtsPlaying = false;
+      activeTtsText = '';
+    }
   }
 
   function speakZh(text, rate = 0.95) {
     if (!text) return;
     const clean = String(text).trim();
     if (!clean) return;
-    if (activeTtsAudio) {
-      try { activeTtsAudio.pause(); activeTtsAudio.currentTime = 0; } catch (e) {}
-      activeTtsAudio = null;
-    }
+    stopZhAudio();
+    activeTtsPlaying = true;
+    activeTtsText = clean;
     const q = encodeURIComponent(clean);
     const urls = [
       'https://dict.youdao.com/dictvoice?audio=' + q + '&le=zh',
@@ -2312,6 +2348,13 @@
         handled = true;
         tryNext();
       };
+      audio.onended = () => {
+        if (activeTtsAudio === audio) {
+          activeTtsAudio = null;
+          activeTtsPlaying = false;
+          activeTtsText = '';
+        }
+      };
       audio.onerror = fail;
       try {
         const p = audio.play();
@@ -2323,13 +2366,26 @@
     tryNext();
   }
 
+  function toggleSpeakZh(text, rate = 0.95) {
+    if (!text) return;
+    const isBrowserSpeaking = ('speechSynthesis' in window) && window.speechSynthesis.speaking;
+    if (activeTtsPlaying || isBrowserSpeaking) {
+      stopZhAudio();
+      return;
+    }
+    speakZh(text, rate);
+  }
+
   function logMistake(hz) {
     if (!hz) return;
     if (!store.mistakes || typeof store.mistakes !== 'object') store.mistakes = {};
-    // Ищем точное слово из VOCAB или первый иероглиф
+    if (!store.mistakeCounts || typeof store.mistakeCounts !== 'object') store.mistakeCounts = {};
     const v = VOCAB.find(x => x[0] === hz) || VOCAB.find(x => x[0].includes(hz));
-    const key = v ? v[0] : hz;
-    store.mistakes[key] = 2; // нужно 2 верных ответа подряд, чтобы закрыть ошибку
+    if (!v) return;
+    const key = v[0];
+    store.mistakeCounts[key] = (store.mistakeCounts[key] || 0) + 1;
+    const targetNeeded = store.mistakeCounts[key] >= 3 ? 3 : 2;
+    store.mistakes[key] = Math.max(store.mistakes[key] || 0, targetNeeded);
     saveStore();
   }
   function resolveMistakeStep(hz) {
@@ -2678,19 +2734,69 @@
   }
 
   function getScopedVocab() {
-    const base = store.scope === 'new' ? NEW_VOCAB : VOCAB;
-    if (!store.topic || store.topic === 'all') return base;
-    const filtered = base.filter(v => getWordTopic(v[0]) === store.topic);
-    if (filtered.length) return filtered;
-    return VOCAB.filter(v => getWordTopic(v[0]) === store.topic);
+    if (store.topic && store.topic !== 'all') {
+      return VOCAB.filter(v => getWordTopic(v[0]) === store.topic);
+    }
+    return store.scope === 'new' ? NEW_VOCAB : VOCAB;
   }
   function getScopedSentences() {
-    const base = store.scope === 'new' ? PARSED.filter(s => s.isNew) : PARSED;
-    if (!store.topic || store.topic === 'all') return base;
-    const filtered = base.filter(s => sentenceMatchesTopic(s, store.topic));
-    if (filtered.length) return filtered;
-    const fallback = PARSED.filter(s => sentenceMatchesTopic(s, store.topic));
-    return fallback.length ? fallback : base;
+    if (store.topic && store.topic !== 'all') {
+      const byTopic = PARSED.filter(s => sentenceMatchesTopic(s, store.topic));
+      return byTopic.length ? byTopic : PARSED;
+    }
+    return store.scope === 'new' ? PARSED.filter(s => s.isNew) : PARSED;
+  }
+
+  function isReduplicatedAA(hz) {
+    const chars = [...hz];
+    return chars.length === 2 && chars[0] === chars[1];
+  }
+
+  function pickSmartDistractors(item, kind, count = 3) {
+    const targetHz = item[0];
+    const targetPy = item[1];
+    const targetRu = item[2];
+    const targetLen = [...targetHz].length;
+    const targetAA = isReduplicatedAA(targetHz);
+    const targetTopic = getWordTopic(targetHz);
+
+    const baseCandidates = VOCAB.filter(v => v[0] !== targetHz && v[1] !== targetPy && v[2] !== targetRu);
+    const picked = [];
+    const usedHz = new Set([targetHz]);
+    const usedPy = new Set([targetPy]);
+    const usedRu = new Set([targetRu]);
+
+    function takeFrom(filterFn) {
+      if (picked.length >= count) return;
+      const matches = shuffle(baseCandidates.filter(v =>
+        !usedHz.has(v[0]) && !usedPy.has(v[1]) && !usedRu.has(v[2]) && filterFn(v)
+      ));
+      for (const v of matches) {
+        if (picked.length >= count) break;
+        picked.push(v);
+        usedHz.add(v[0]); usedPy.add(v[1]); usedRu.add(v[2]);
+      }
+    }
+
+    if (kind === 'ru2hz' || kind === 'hz2py' || kind === 'audio') {
+      if (targetAA) {
+        takeFrom(v => isReduplicatedAA(v[0]) && getWordTopic(v[0]) === targetTopic);
+        takeFrom(v => isReduplicatedAA(v[0]));
+      } else {
+        takeFrom(v => [...v[0]].length === targetLen && !isReduplicatedAA(v[0]) && getWordTopic(v[0]) === targetTopic);
+        takeFrom(v => [...v[0]].length === targetLen && !isReduplicatedAA(v[0]));
+        takeFrom(v => [...v[0]].length === targetLen);
+      }
+      takeFrom(v => Math.abs([...v[0]].length - targetLen) <= 1);
+      takeFrom(() => true);
+    } else {
+      takeFrom(v => getWordTopic(v[0]) === targetTopic && [...v[0]].length === targetLen && isReduplicatedAA(v[0]) === targetAA);
+      takeFrom(v => getWordTopic(v[0]) === targetTopic && [...v[0]].length === targetLen);
+      takeFrom(v => getWordTopic(v[0]) === targetTopic);
+      takeFrom(v => [...v[0]].length === targetLen);
+      takeFrom(() => true);
+    }
+    return picked;
   }
 
   /* =====================================================================
@@ -2851,25 +2957,34 @@
 
   window.setScope = function (sc) {
     store.scope = sc;
+    if (sc === 'new') store.topic = 'all';
     saveStore();
     playSfx('tap');
   };
   window.setTopic = function (tid) {
     store.topic = tid;
+    if (tid !== 'all') store.scope = 'all';
     saveStore();
     playSfx('tap');
   };
   function renderScopeTopics() {
-    const box = document.getElementById('scope-topics');
-    if (!box) return;
-    box.innerHTML = '';
-    TOPICS.forEach(t => {
-      const b = document.createElement('button');
-      b.className = 'topic-chip' + (store.topic === t.id ? ' active' : '');
-      b.textContent = t.label;
-      b.onclick = () => setTopic(t.id);
-      box.appendChild(b);
+    ['scope-topics', 'games-topics'].forEach(boxId => {
+      const box = document.getElementById(boxId);
+      if (!box) return;
+      box.innerHTML = '';
+      TOPICS.forEach(t => {
+        const b = document.createElement('button');
+        b.className = 'topic-chip' + (store.topic === t.id ? ' active' : '');
+        b.textContent = t.label;
+        b.onclick = () => setTopic(t.id);
+        box.appendChild(b);
+      });
     });
+    const gCnt = document.getElementById('games-topic-count');
+    if (gCnt) {
+      const tObj = TOPICS.find(x => x.id === store.topic);
+      gCnt.textContent = store.topic === 'all' ? 'Все темы' : `${tObj ? tObj.label : ''} (${getScopedVocab().length} сл.)`;
+    }
   }
 
   function showScreen(name) {
@@ -2893,6 +3008,7 @@
   }
 
   window.goMenu = function () {
+    stopZhAudio();
     clearInterval(blitzInterval);
     blitzInterval = null;
     state = { mode: 'menu', score: 0 };
@@ -2967,7 +3083,7 @@
   };
   window.speakFlash = function (rate) {
     const item = state.deck[state.idx];
-    if (item) speakZh(item[0], rate);
+    if (item) toggleSpeakZh(item[0], rate);
   };
   window.rateFlash = function (quality) {
     const item = state.deck[state.idx];
@@ -3058,7 +3174,7 @@
   };
 
   window.speakToneWord = function () {
-    if (state.task) speakZh(state.task.hz, 0.85);
+    if (state.task) toggleSpeakZh(state.task.hz, 0.85);
   };
 
   /* =====================================================================
@@ -3098,7 +3214,7 @@
     const pool = getScopedVocab().length >= 4 ? getScopedVocab() : VOCAB;
     const item = pick(pool);
     const kind = pick(['hz2ru', 'ru2hz', 'hz2py']);
-    const distractors = shuffle(VOCAB.filter(v => v[0] !== item[0] && v[2] !== item[2] && v[1] !== item[1])).slice(0, 3);
+    const distractors = pickSmartDistractors(item, kind, 3);
     const opts = shuffle([item, ...distractors]).map(v => ({
       correct: v[0] === item[0],
       label: kind === 'hz2ru' ? v[2] : (kind === 'ru2hz' ? v[0] : v[1]),
@@ -3438,6 +3554,7 @@
   };
 
   window.nextRound = function () {
+    stopZhAudio();
     const def = MODES[state.mode];
     if (!def) return;
     const score = state.score || 0;
@@ -3462,6 +3579,13 @@
       let sourceList = hardSyllables;
       if (state.mode === 'combos') sourceList = hardCombos;
       if (state.mode === 'twins') sourceList = phoneticTwins;
+      if (store.topic && store.topic !== 'all' && state.mode !== 'syllables') {
+        const topicPys = new Set(getScopedVocab().map(v => v[1]));
+        const topicFiltered = sourceList.filter(item =>
+          typeof item === 'string' ? topicPys.has(item) : item.some(x => topicPys.has(x))
+        );
+        if (topicFiltered.length) sourceList = topicFiltered;
+      }
       let set = pickNoRepeat(sourceList, state.mode);
       if (typeof set === 'string') set = toneVariants(set);
       const cards = shuffle(set.map(text => ({ text, selected: false })));
@@ -3491,7 +3615,16 @@
       awardXP(15, true);
       speakZh(state.task.reveal.h, 0.9);
     } else if (!ok) {
+      const wrongKeys = new Set();
+      state.slots.forEach((cid, i) => {
+        if (!state.task.answer[i].includes(cardById(cid).text)) {
+          const expected = state.task.answer[i][0];
+          const v = VOCAB.find(x => x[0] === expected) || VOCAB.find(x => x[1] === expected) || VOCAB.find(x => x[0].includes(expected));
+          if (v) wrongKeys.add(v[0]);
+        }
+      });
       awardXP(0, false);
+      wrongKeys.forEach(k => logMistake(k));
     }
     state.solved = ok;
   }
@@ -3534,7 +3667,7 @@
     renderSlots(MODES[state.mode]);
   };
   window.speakSlots = function () {
-    if (state.task && state.task.reveal) speakZh(state.task.reveal.h, 0.88);
+    if (state.task && state.task.reveal) toggleSpeakZh(state.task.reveal.h, 0.88);
   };
 
   /* ---------- Перетаскивание ---------- */
@@ -3641,9 +3774,9 @@
     const targetPy = state.cards[state.targetIdx].text;
     // Ищем подходящие иероглифы с таким пиньинем для точного произношения, иначе передаём слог
     const vocabMatch = VOCAB.find(v => v[1] === targetPy);
-    if (vocabMatch) return speakZh(vocabMatch[0], rate);
+    if (vocabMatch) return toggleSpeakZh(vocabMatch[0], rate);
     const charMatch = ALL_CHARS.find(c => CHAR_PY[c] && CHAR_PY[c].has(targetPy));
-    speakZh(charMatch || targetPy, rate);
+    toggleSpeakZh(charMatch || targetPy, rate);
   };
   function tapPhonCard(idx) {
     if (store.phonMode === 'free') {
@@ -3659,7 +3792,9 @@
       state.score += 1;
       awardXP(10, true);
     } else {
-      awardXP(0, false);
+      const targetPy = state.cards[state.targetIdx] ? state.cards[state.targetIdx].text : '';
+      const vm = VOCAB.find(v => v[1] === targetPy);
+      awardXP(0, false, vm ? vm[0] : null);
     }
     renderPhon(MODES[state.mode]);
   }
@@ -3829,15 +3964,16 @@
   /* =====================================================================
      РЕЖИМ 12: ПРОПИСИ (HANZI WRITER — ПОРЯДОК И НАПРАВЛЕНИЕ ЧЕРТ)
      ===================================================================== */
+  const CHAR_MEANING = {"一": "один", "七": "семь", "丈": "муж (из слова «муж»)", "三": "три", "上": "верх; до (утро / первая половина дня)", "下": "низ; идти (о дожде, снеге); после полудня", "不": "не, нет", "个": "счётное слово (штука, человек)", "中": "середина; Китай; полдень", "么": "вопросительный суффикс (из слова «что»)", "乐": "радость (из слова «счастливый»)", "九": "девять", "习": "учить, практиковать (из слова «учиться»)", "了": "частица завершённости действия", "二": "два (цифра)", "云": "облако (из слова «облачно»)", "五": "пять", "亮": "яркий (из слова «красивая»)", "亲": "родной (из слов «отец», «мать»)", "什": "что (из слова «что? какой?»)", "今": "нынешний (из слова «сегодня»)", "他": "он", "以": "можно (из слова «можно»)", "们": "суффикс множественного числа (мы, вы, они)", "休": "отдых (из слова «отдыхать»)", "作": "делать (из слова «работать»)", "你": "ты", "俄": "Россия; русский язык", "傍": "близко к (из слова «сумерки»)", "儿": "ребёнок, сын, дочь", "克": "слог в названии Новороссийска", "入": "входить (из слова «вход»)", "八": "восемь", "公": "дедушка по маме (второй знак)", "六": "шесть", "兴": "радость, настроение (из слова «радостный»)", "再": "снова, ещё (из слова «до свидания»)", "凉": "прохладный (из слова «прохладно»)", "凌": "ранний (из слова «до рассвета»)", "出": "выходить (из слов «выход», «выходить»)", "利": "слог в имени Григорий", "前": "перед; позавчера", "十": "десять", "午": "полдень (утро / полдень / день)", "友": "друг (второй знак)", "口": "рот; вход / выход", "可": "мочь, можно (из слов «можно», «смешной»)", "名": "имя (первый знак)", "后": "после; послезавтра", "吗": "вопросительная частица «ли?»", "哥": "старший брат", "喜": "радоваться (из слова «нравиться»)", "喵": "мяу (из слова «мяукать»)", "四": "четыре", "在": "в, находиться; в процессе", "城": "город (первый знак)", "外": "внешний (дедушка/бабушка по маме)", "多": "много (из слов «сколько», «облачно»)", "夜": "ночь (из слов «глубокая ночь», «полночь»)", "天": "день, небо (сегодня / погода)", "夫": "муж (второй знак)", "女": "женский, дочь", "奶": "бабушка по папе", "她": "она", "好": "хороший, хорошо", "妈": "мама", "妹": "младшая сестра", "妻": "жена (первый знак)", "姐": "старшая сестра", "婆": "бабушка по маме (второй знак)", "子": "ребёнок; суффикс существительного", "字": "иероглиф, буква (из слов «иероглиф», «печатать»)", "学": "учиться (из слов «учить», «студент», «математика»)", "孩": "ребёнок (первый знак)", "安": "спокойный (из слова «спокойной ночи»)", "察": "наблюдать (второй знак)", "少": "мало (из слова «сколько»)", "工": "труд, работа (из слова «работать»)", "市": "город, рынок (второй знак)", "师": "наставник (из слова «учитель»)", "常": "обычный (из слова «чрезвычайно»)", "弟": "младший брат", "快": "быстрый; весёлый (из слова «счастливый»)", "息": "покой (из слова «отдыхать»)", "您": "Вы (вежливо)", "我": "я", "或": "или (первый знак)", "打": "бить; печатать (из слова «печатать»)", "数": "число (из слова «математика»)", "斯": "слог в словах «Россия» и «Новороссийск»", "日": "день, солнце (из слова «день рождения»)", "早": "рано (из слова «утро»)", "明": "ясный; завтра (из слова «завтра»)", "星": "звезда (из слова «неделя»)", "昨": "вчера (первый знак)", "是": "быть, являться", "晚": "поздно, вечер (из слов «вечер», «сумерки»)", "晨": "рассвет (из слова «раннее утро»)", "晴": "ясный (из слова «ясный день»)", "暖": "тёплый (из слова «тепло»)", "朋": "друг (первый знак)", "期": "период (из слова «неделя»)", "梦": "сон, мечта (из слова «сладких снов»)", "欢": "радостный (из слова «нравиться»)", "母": "мать (из слов «родители», «мать»)", "气": "воздух (из слова «погода»)", "汉": "китайский (из слов «китайский язык», «иероглиф»)", "沃": "слог в названии Новороссийска", "没": "не иметь, нет (первый знак)", "波": "волна; слог в имени Полина", "活": "жить, живой (из слова «быть живым»)", "深": "глубокий (из слова «глубокая ночь»)", "温": "тёплый (из слова «тепло»)", "漂": "красивый (из слова «красивая»)", "父": "отец (из слов «родители», «отец»)", "爷": "дедушка по папе", "爸": "папа", "爽": "свежий (из слова «прохладно»)", "现": "сейчас (первый знак)", "生": "рождаться (из слов «день рождения», «студент»)", "的": "частица принадлежности «чей»", "着": "частица состояния (из слова «быть живым»)", "笑": "смеяться (из слова «смешной»)", "第": "префикс порядкового числа (из слова «первый»)", "纳": "слог в имени Полина", "罗": "слог в словах «Россия» и «Новороссийск»", "者": "или (второй знак)", "舞": "танец (из слова «танцевать»)", "英": "английский, Англия", "莉": "слог в имени Полина", "葛": "слог в имени Григорий", "西": "запад; слог в названии Новороссийска", "观": "смотреть (из слова «наблюдать»)", "语": "язык (из слов «китайский / русский / английский»)", "请": "просить, пожалуйста (из слова «скажите, пожалуйста»)", "诺": "слог в названии Новороссийска", "起": "вставать (из слова «вместе»)", "跳": "прыгать (из слова «танцевать»)", "轻": "лёгкий (из слова «молодой»)", "里": "внутри (из слова «здесь»)", "问": "спрашивать (из слова «скажите, пожалуйста»)", "阴": "пасмурный (из слова «пасмурно»)", "零": "ноль", "非": "не, очень (из слова «чрезвычайно»)"};
   const NEW_SINGLE_CHARS = [
     ["想", "xiǎng", "хотеть, думать"], ["回", "huí", "возвращаться"], ["听", "tīng", "слушать"],
-    ["习", "xí", "учить (в 学习)"], ["休", "xiū", "отдых (в 休息)"], ["息", "xī", "покой (в 休息)"],
-    ["会", "huì", "мочь, уметь"], ["观", "guān", "смотреть (в 观察)"], ["察", "chá", "наблюдать (в 观察)"],
-    ["写", "xiě", "писать"], ["打", "dǎ", "печатать (в 打字)"], ["坐", "zuò", "сидеть; ехать"],
-    ["开", "kāi", "открывать; водить"], ["行", "xíng", "годится; идти"], ["入", "rù", "входить (в 入口)"],
-    ["口", "kǒu", "рот, вход/выход"], ["朋", "péng", "друг (в 朋友)"], ["友", "yǒu", "друг (в 朋友)"],
-    ["起", "qǐ", "вставать (в 一起)"], ["路", "lù", "путь, дорога"], ["跳", "tiào", "прыгать (в 跳舞)"],
-    ["舞", "wǔ", "танец (в 跳舞)"], ["兆", "zhào", "миллион (мега-)"]
+    ["习", "xí", "учить, практиковать (из слова «учиться»)"], ["休", "xiū", "отдых (из слова «отдыхать»)"], ["息", "xī", "покой (из слова «отдыхать»)"],
+    ["会", "huì", "мочь, уметь"], ["观", "guān", "смотреть (из слова «наблюдать»)"], ["察", "chá", "наблюдать (второй знак)"],
+    ["写", "xiě", "писать"], ["打", "dǎ", "бить; печатать (из слова «печатать»)"], ["坐", "zuò", "сидеть; ехать"],
+    ["开", "kāi", "открывать; водить"], ["行", "xíng", "годится; идти"], ["入", "rù", "входить (из слова «вход»)"],
+    ["口", "kǒu", "рот, вход / выход"], ["朋", "péng", "друг (первый знак)"], ["友", "yǒu", "друг (второй знак)"],
+    ["起", "qǐ", "вставать (из слова «вместе»)"], ["路", "lù", "путь, дорога"], ["跳", "tiào", "прыгать (из слова «танцевать»)"],
+    ["舞", "wǔ", "танец (из слова «танцевать»)"], ["兆", "zhào", "миллион (мега-)"]
   ];
   const ALL_WRITE_CHARS = (() => {
     const map = new Map();
@@ -3853,7 +3989,8 @@
       if (!map.has(c)) {
         const py = [...(CHAR_PY[c] || [''])][0];
         const parent = VOCAB.find(v => v[0].includes(c));
-        map.set(c, { c, p: py, r: parent ? `из слова ${parent[0]} (${parent[2]})` : 'изученный иероглиф', isNew: false });
+        const meaning = CHAR_MEANING[c] || (parent ? parent[2] : 'иероглиф из пройденных фраз');
+        map.set(c, { c, p: py, r: meaning, isNew: false });
       }
     });
     return [...map.values()];
@@ -3861,6 +3998,12 @@
 
   let hanziWriter = null;
   function getWritePool() {
+    if (store.topic && store.topic !== 'all') {
+      const topicChars = new Set();
+      getScopedVocab().forEach(v => [...v[0]].forEach(ch => topicChars.add(ch)));
+      const byTopic = ALL_WRITE_CHARS.filter(x => topicChars.has(x.c));
+      return byTopic.length ? byTopic : ALL_WRITE_CHARS;
+    }
     return store.scope === 'new' ? ALL_WRITE_CHARS.filter(x => x.isNew) : ALL_WRITE_CHARS;
   }
 
@@ -3873,13 +4016,13 @@
   }
 
   function renderWriteUI() {
-    document.getElementById('write-mode-trace').classList.toggle('active', store.writeMode === 'trace');
-    document.getElementById('write-mode-blind').classList.toggle('active', store.writeMode === 'blind');
+    document.getElementById('write-mode-blind').classList.toggle('active', !store.writeOutline);
+    document.getElementById('write-mode-trace').classList.toggle('active', !!store.writeOutline);
     document.getElementById('write-py').textContent = state.item.p;
     document.getElementById('write-ru').textContent = state.item.r;
     document.getElementById('write-score').textContent = state.score ? `Написано за сессию: ${state.score}` : '';
     document.getElementById('write-status').textContent =
-      store.writeMode === 'trace' ? 'Обведи иероглиф — порядок и направление черт проверяются' : 'Вспомни и напиши иероглиф по памяти (после 2 ошибок будет подсказка)';
+      store.writeOutline ? 'Обведи иероглиф — порядок и направление черт проверяются' : 'Напиши иероглиф по памяти (после 2 ошибок покажу подсказку)';
     const fb = document.getElementById('write-feedback');
     fb.className = 'feedback';
     fb.textContent = '';
@@ -3899,7 +4042,7 @@
         height: 256,
         padding: 16,
         showCharacter: false,
-        showOutline: store.writeMode === 'trace',
+        showOutline: !!store.writeOutline,
         outlineColor: '#cbd5e1',
         strokeColor: '#0f172a',
         highlightColor: '#e11d48',
@@ -3948,8 +4091,8 @@
     });
   }
 
-  window.setWriteMode = function (wm) {
-    store.writeMode = wm;
+  window.setWriteOutline = function (show) {
+    store.writeOutline = !!show;
     saveStore();
     playSfx('tap');
     renderWriteUI();
@@ -3970,7 +4113,7 @@
     initHanziWriter();
   };
   window.speakWriteChar = function (rate) {
-    if (state.item) speakZh(state.item.c, rate);
+    if (state.item) toggleSpeakZh(state.item.c, rate);
   };
 
   /* =====================================================================
@@ -3979,7 +4122,10 @@
   function startMistakesRound(score) {
     showScreen('mistakes');
     const keys = store.mistakes ? Object.keys(store.mistakes) : [];
-    const items = keys.map(k => VOCAB.find(v => v[0] === k)).filter(Boolean);
+    const items = keys
+      .map(k => VOCAB.find(v => v[0] === k))
+      .filter(Boolean)
+      .sort((a, b) => ((store.mistakeCounts && store.mistakeCounts[b[0]]) || 1) - ((store.mistakeCounts && store.mistakeCounts[a[0]]) || 1));
     if (!items.length) {
       document.getElementById('mistakes-empty').style.display = 'block';
       document.getElementById('mistakes-active').style.display = 'none';
@@ -3988,9 +4134,10 @@
     }
     document.getElementById('mistakes-empty').style.display = 'none';
     document.getElementById('mistakes-active').style.display = 'block';
-    const item = pickNoRepeat(items, 'mistakes');
+    const topPool = items.slice(0, Math.min(items.length, 5));
+    const item = pickNoRepeat(topPool, 'mistakes');
     const kind = pick(['hz2ru', 'ru2hz', 'hz2py']);
-    const distractors = shuffle(VOCAB.filter(v => v[0] !== item[0] && v[2] !== item[2] && v[1] !== item[1])).slice(0, 3);
+    const distractors = pickSmartDistractors(item, kind, 3);
     const opts = shuffle([item, ...distractors]).map(v => ({
       correct: v[0] === item[0],
       label: kind === 'hz2ru' ? v[2] : (kind === 'ru2hz' ? v[0] : v[1]),
@@ -4003,7 +4150,8 @@
   function renderMistakeQ() {
     const { item, kind, opts } = state;
     const leftCount = store.mistakes[item[0]] || 1;
-    document.getElementById('mistakes-sub').textContent = `Слов на отработке: ${Object.keys(store.mistakes).length} • Для этого слова осталось верных ответов: ${leftCount}`;
+    const errTotal = (store.mistakeCounts && store.mistakeCounts[item[0]]) || 1;
+    document.getElementById('mistakes-sub').textContent = `Слов на отработке: ${Object.keys(store.mistakes).length} • Ошибок: ${errTotal} • Осталось верных: ${leftCount}`;
     const qType = document.getElementById('mistakes-q-type');
     const qMain = document.getElementById('mistakes-q-main');
     if (kind === 'hz2ru') {
@@ -4062,7 +4210,7 @@
   }
 
   window.speakMistakeItem = function (rate) {
-    if (state.item) speakZh(state.item[0], rate);
+    if (state.item) toggleSpeakZh(state.item[0], rate);
   };
 
 
@@ -4124,7 +4272,11 @@
       document.getElementById('daily-write-area').style.display = 'block';
       document.getElementById('daily-w-py').textContent = step.wItem.p;
       document.getElementById('daily-w-ru').textContent = step.wItem.r;
-      document.getElementById('daily-w-status').textContent = 'Напиши иероглиф по порядку черт';
+      state.dailyOutline = false;
+      state.dailyWriteMistakes = 0;
+      const outBtn = document.getElementById('daily-outline-btn');
+      if (outBtn) outBtn.textContent = '👁️ Контур';
+      document.getElementById('daily-w-status').textContent = 'Напиши иероглиф по памяти (или включи контур)';
       const target = document.getElementById('daily-hanzi-target');
       target.innerHTML = '';
       dailyWriter = null;
@@ -4132,14 +4284,18 @@
         try {
           dailyWriter = HanziWriter.create(target, step.wItem.c, {
             width: 256, height: 256, padding: 16,
-            showCharacter: false, showOutline: true,
+            showCharacter: false, showOutline: false,
             outlineColor: '#cbd5e1', strokeColor: '#0f172a',
             highlightColor: '#e11d48', drawingColor: '#2563eb',
             drawingWidth: 18, showHintAfterMisses: 2, highlightOnComplete: true
           });
           dailyWriter.quiz({
             onCorrectStroke: () => { playSfx('tap'); haptic('tap'); },
-            onMistake: () => { playSfx('bad'); haptic('bad'); },
+            onMistake: () => {
+              playSfx('bad'); haptic('bad');
+              state.dailyWriteMistakes = (state.dailyWriteMistakes || 0) + 1;
+              if (state.dailyWriteMistakes === 2) logMistake(step.wItem.c);
+            },
             onComplete: () => {
               state.answered = true;
               state.correct += 1;
@@ -4173,7 +4329,7 @@
       qType.textContent = 'Выбери перевод';
       qMain.textContent = item[0];
       qMain.className = 'blitz-q-main hz';
-      const dist = shuffle(VOCAB.filter(v => v[0] !== item[0] && v[2] !== item[2])).slice(0, 3);
+      const dist = pickSmartDistractors(item, 'hz2ru', 3);
       opts = shuffle([item, ...dist]).map(v => ({ correct: v[0] === item[0], label: v[2], isHz: false }));
     } else if (step.kind === 'ru2hz') {
       document.getElementById('daily-kind-label').textContent = '🧩 Иероглифы';
@@ -4181,14 +4337,14 @@
       qMain.textContent = item[2];
       qMain.className = 'blitz-q-main ru-q';
       document.getElementById('daily-audio-bar').style.display = 'none';
-      const dist = shuffle(VOCAB.filter(v => v[0] !== item[0] && v[2] !== item[2])).slice(0, 3);
+      const dist = pickSmartDistractors(item, 'ru2hz', 3);
       opts = shuffle([item, ...dist]).map(v => ({ correct: v[0] === item[0], label: v[0], isHz: true }));
     } else if (step.kind === 'audio') {
       document.getElementById('daily-kind-label').textContent = '🎧 На слух';
       qType.textContent = 'Прослушай и выбери слово';
       qMain.textContent = '🔊';
       qMain.className = 'blitz-q-main';
-      const dist = shuffle(VOCAB.filter(v => v[0] !== item[0] && v[2] !== item[2])).slice(0, 3);
+      const dist = pickSmartDistractors(item, 'audio', 3);
       opts = shuffle([item, ...dist]).map(v => ({ correct: v[0] === item[0], label: `${v[0]} · ${v[2]}`, isHz: false }));
       setTimeout(() => speakZh(item[0], 0.88), 200);
     } else {
@@ -4257,10 +4413,19 @@
   window.speakDaily = function (rate) {
     const step = state.steps && state.steps[state.idx];
     if (!step) return;
-    speakZh(step.kind === 'write' ? step.wItem.c : step.item[0], rate);
+    toggleSpeakZh(step.kind === 'write' ? step.wItem.c : step.item[0], rate);
   };
   window.animateDailyWrite = function () {
     if (dailyWriter) dailyWriter.animateCharacter();
+  };
+  window.toggleDailyOutline = function () {
+    if (!dailyWriter) return;
+    state.dailyOutline = !state.dailyOutline;
+    playSfx('tap');
+    if (state.dailyOutline) dailyWriter.showOutline();
+    else dailyWriter.hideOutline();
+    const outBtn = document.getElementById('daily-outline-btn');
+    if (outBtn) outBtn.textContent = state.dailyOutline ? '🙈 Скрыть контур' : '👁️ Контур';
   };
 
   /* =====================================================================
@@ -4406,7 +4571,7 @@
     document.getElementById('word-modal').classList.remove('open');
   };
   window.speakModalWord = function (rate) {
-    if (modalWord) speakZh(modalWord[0], rate);
+    if (modalWord) toggleSpeakZh(modalWord[0], rate);
   };
   window.toggleModalLearned = function () {
     if (!modalWord) return;
@@ -4490,7 +4655,7 @@
       popup.appendChild(left);
       const spk = el('button', 'icon-btn', '🔊');
       spk.title = 'Озвучить слово';
-      spk.onclick = () => speakZh(state.selectedTok.hz, 0.9);
+      spk.onclick = () => toggleSpeakZh(state.selectedTok.hz, 0.9);
       popup.appendChild(spk);
     } else {
       popup.className = 'read-popup empty';
@@ -4554,7 +4719,7 @@
     const t = state.list && state.list[state.idx];
     if (!t) return;
     const full = t.sents.map(s => s.map(tok => tok[0]).join('')).join(' ');
-    speakZh(full, rate);
+    toggleSpeakZh(full, rate);
   };
   window.prevReadText = function () {
     if (!state.list) return;
