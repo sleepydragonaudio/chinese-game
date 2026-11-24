@@ -2281,43 +2281,56 @@
   }
 
   let activeTtsAudio = null;
-  let activeTtsPlaying = false;
-  let activeTtsText = '';
+  let activeTtsTimer = null;
+  let activeUtterance = null;
+  let ttsSeq = 0;
+
+  function isZhAudioPlaying() {
+    const htmlPlaying = !!(activeTtsAudio && !activeTtsAudio.paused && !activeTtsAudio.ended);
+    const synthPlaying = !!('speechSynthesis' in window && window.speechSynthesis.speaking);
+    return htmlPlaying || synthPlaying;
+  }
 
   function stopZhAudio() {
+    ttsSeq += 1;
+    clearTimeout(activeTtsTimer);
+    activeTtsTimer = null;
     if (activeTtsAudio) {
       try { activeTtsAudio.pause(); activeTtsAudio.currentTime = 0; } catch (e) {}
       activeTtsAudio = null;
     }
+    activeUtterance = null;
     if ('speechSynthesis' in window) {
-      try { window.speechSynthesis.cancel(); } catch (e) {}
+      try {
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+          window.speechSynthesis.cancel();
+        }
+      } catch (e) {}
     }
-    activeTtsPlaying = false;
-    activeTtsText = '';
   }
 
-  function speakWithBrowserTts(text, rate) {
-    if (!('speechSynthesis' in window)) {
-      activeTtsPlaying = false;
-      activeTtsText = '';
-      return;
-    }
+  function speakWithBrowserTts(text, rate, seq) {
+    if (!('speechSynthesis' in window) || seq !== ttsSeq) return;
     try {
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'zh-CN';
-      u.rate = rate;
-      const voices = window.speechSynthesis.getVoices();
-      const zh = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('zh'));
-      if (zh) u.voice = zh;
-      activeTtsPlaying = true;
-      activeTtsText = text;
-      u.onend = () => { activeTtsPlaying = false; activeTtsText = ''; };
-      u.onerror = () => { activeTtsPlaying = false; activeTtsText = ''; };
-      window.speechSynthesis.speak(u);
+      const needCancel = window.speechSynthesis.speaking || window.speechSynthesis.pending;
+      if (needCancel) window.speechSynthesis.cancel();
+      const startSpeak = () => {
+        if (seq !== ttsSeq) return;
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'zh-CN';
+        u.rate = rate;
+        const voices = window.speechSynthesis.getVoices();
+        const zh = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('zh'));
+        if (zh) u.voice = zh;
+        activeUtterance = u;
+        u.onend = () => { if (activeUtterance === u) activeUtterance = null; };
+        u.onerror = () => { if (activeUtterance === u) activeUtterance = null; };
+        window.speechSynthesis.speak(u);
+      };
+      if (needCancel) setTimeout(startSpeak, 40);
+      else startSpeak();
     } catch (e) {
-      activeTtsPlaying = false;
-      activeTtsText = '';
+      activeUtterance = null;
     }
   }
 
@@ -2326,8 +2339,7 @@
     const clean = String(text).trim();
     if (!clean) return;
     stopZhAudio();
-    activeTtsPlaying = true;
-    activeTtsText = clean;
+    const mySeq = ttsSeq;
     const q = encodeURIComponent(clean);
     const urls = [
       'https://dict.youdao.com/dictvoice?audio=' + q + '&le=zh',
@@ -2335,8 +2347,11 @@
     ];
     let idx = 0;
     function tryNext() {
+      if (mySeq !== ttsSeq) return;
+      clearTimeout(activeTtsTimer);
       if (idx >= urls.length) {
-        speakWithBrowserTts(clean, rate);
+        activeTtsAudio = null;
+        speakWithBrowserTts(clean, rate, mySeq);
         return;
       }
       const audio = new Audio(urls[idx++]);
@@ -2344,18 +2359,23 @@
       activeTtsAudio = audio;
       let handled = false;
       const fail = () => {
-        if (handled || activeTtsAudio !== audio) return;
+        if (handled || mySeq !== ttsSeq || activeTtsAudio !== audio) return;
         handled = true;
+        clearTimeout(activeTtsTimer);
+        try { audio.pause(); } catch (e) {}
         tryNext();
       };
+      audio.onplaying = () => {
+        clearTimeout(activeTtsTimer);
+      };
       audio.onended = () => {
-        if (activeTtsAudio === audio) {
-          activeTtsAudio = null;
-          activeTtsPlaying = false;
-          activeTtsText = '';
-        }
+        clearTimeout(activeTtsTimer);
+        if (activeTtsAudio === audio) activeTtsAudio = null;
       };
       audio.onerror = fail;
+      activeTtsTimer = setTimeout(() => {
+        if (activeTtsAudio === audio && (audio.paused || audio.readyState < 2)) fail();
+      }, 2200);
       try {
         const p = audio.play();
         if (p && typeof p.catch === 'function') p.catch(fail);
@@ -2368,8 +2388,7 @@
 
   function toggleSpeakZh(text, rate = 0.95) {
     if (!text) return;
-    const isBrowserSpeaking = ('speechSynthesis' in window) && window.speechSynthesis.speaking;
-    if (activeTtsPlaying || isBrowserSpeaking) {
+    if (isZhAudioPlaying()) {
       stopZhAudio();
       return;
     }
